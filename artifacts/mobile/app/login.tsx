@@ -110,9 +110,17 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          Default: admin / medpay@2024
-        </Text>
+        <TouchableOpacity
+          onPress={() => { setUsername("admin"); setPassword("medpay@2024"); }}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.hint, { color: colors.primary }]}>
+            Tap to fill default credentials
+          </Text>
+          <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
+            admin / medpay@2024
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -134,5 +142,6 @@ const styles = StyleSheet.create({
   loginBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center", justifyContent: "center", marginTop: 4 },
   loginBtnDisabled: { opacity: 0.7 },
   loginBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  hint: { textAlign: "center", fontSize: 12, fontFamily: "Inter_400Regular" },
+  hint: { textAlign: "center", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  hintSub: { textAlign: "center", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

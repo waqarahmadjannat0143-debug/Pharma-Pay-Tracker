@@ -31,16 +31,18 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (isLoading) return;
-    const inTabsGroup = segments[0] === "(tabs)";
-    if (!isAuthenticated && inTabsGroup) {
+    const protectedSegments = ["(tabs)", "customer", "invoice", "payment", "report"];
+    const inProtected = protectedSegments.includes(segments[0] as string);
+    if (!isAuthenticated && inProtected) {
       router.replace("/login");
-    } else if (isAuthenticated && !inTabsGroup && segments[0] !== "customer" && segments[0] !== "invoice" && segments[0] !== "payment" && segments[0] !== "report") {
+    } else if (isAuthenticated && segments[0] === "login") {
       router.replace("/(tabs)");
     }
   }, [isAuthenticated, isLoading, segments]);
 
   return (
     <Stack>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="customer/add" options={{ title: "Add Medical Store", headerBackTitle: "Back" }} />
