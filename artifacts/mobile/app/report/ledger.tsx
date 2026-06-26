@@ -1,0 +1,122 @@
+import React, { useState } from "react";
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Platform } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
+import { useColors } from "@/hooks/useColors";
+import { EmptyState } from "@/components/EmptyState";
+import { useGetCustomerLedger, useGetCustomers } from "@workspace/api-client-react";
+
+function formatCurrency(amount: number) {
+  return "₹" + Math.abs(amount).toLocaleString("en-IN", { minimumFractionDigits: 0 });
+}
+
+export default function LedgerScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const isWeb = Platform.OS === "web";
+  const params = useLocalSearchParams<{ customerId?: string; customerName?: string }>();
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(params.customerId ? parseInt(params.customerId) : null);
+  const [selectedName, setSelectedName] = useState(params.customerName || "");
+  const [showPicker, setShowPicker] = useState(!params.customerId);
+
+  const { data: customers } = useGetCustomers({});
+  const { data: ledger, isLoading } = useGetCustomerLedger(selectedCustomerId ?? 0);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.selectorWrap, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.selector, { borderColor: colors.border, backgroundColor: colors.card }]}
+          onPress={() => setShowPicker(!showPicker)}
+        >
+          <Feather name="users" size={16} color={colors.mutedForeground} />
+          <Text style={[styles.selectorText, { color: selectedName ? colors.foreground : colors.mutedForeground }]}>
+            {selectedName || "Select a store to view ledger"}
+          </Text>
+          <Feather name={showPicker ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
+        </TouchableOpacity>
+        {showPicker && (
+          <View style={[styles.picker, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled">
+              {(customers ?? []).map(c => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.pickerItem, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    setSelectedCustomerId(c.id);
+                    setSelectedName(c.name);
+                    setShowPicker(false);
+                  }}
+                >
+                  <Text style={[styles.pickerText, { color: colors.foreground }]}>{c.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+
+      {!selectedCustomerId ? (
+        <EmptyState icon="book" title="Select a store" subtitle="Choose a store above to view its complete ledger" />
+      ) : isLoading ? (
+        <View style={styles.loader}><ActivityIndicator color={colors.primary} size="large" /></View>
+      ) : (
+        <FlatList
+          data={ledger ?? []}
+          keyExtractor={(_, i) => String(i)}
+          ListHeaderComponent={() => (
+            <View style={[styles.tableHeader, { backgroundColor: colors.primary + "15", borderColor: colors.border }]}>
+              <Text style={[styles.colDate, styles.headerText, { color: colors.primary }]}>Date</Text>
+              <Text style={[styles.colType, styles.headerText, { color: colors.primary }]}>Type</Text>
+              <Text style={[styles.colAmount, styles.headerText, { color: colors.primary }]}>Amount</Text>
+              <Text style={[styles.colBalance, styles.headerText, { color: colors.primary }]}>Balance</Text>
+            </View>
+          )}
+          renderItem={({ item }) => (
+            <View style={[styles.row, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.colDate, styles.cell, { color: colors.mutedForeground }]}>{item.date}</Text>
+              <View style={styles.colType}>
+                <View style={[styles.typeBadge, { backgroundColor: item.type === "invoice" ? colors.primary + "15" : colors.paid + "15" }]}>
+                  <Text style={[styles.typeText, { color: item.type === "invoice" ? colors.primary : colors.paid }]}>
+                    {item.type === "invoice" ? "Inv" : "Pay"}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.colAmount, styles.cell, { color: item.type === "invoice" ? colors.overdue : colors.paid }]}>
+                {item.type === "invoice" ? "+" : "-"}{formatCurrency(item.amount)}
+              </Text>
+              <Text style={[styles.colBalance, styles.cell, { color: item.balance >= 0 ? colors.overdue : colors.paid, fontFamily: "Inter_600SemiBold" }]}>
+                {formatCurrency(item.balance)}
+              </Text>
+            </View>
+          )}
+          ListEmptyComponent={<EmptyState icon="book" title="No entries" subtitle="No transactions found" />}
+          contentContainerStyle={{ paddingBottom: insets.bottom + (isWeb ? 34 : 20) }}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  selectorWrap: { padding: 16, borderBottomWidth: 1, gap: 8 },
+  selector: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 },
+  selectorText: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  picker: { borderWidth: 1, borderRadius: 10, overflow: "hidden" },
+  pickerItem: { paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1 },
+  pickerText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  loader: { flex: 1, alignItems: "center", justifyContent: "center" },
+  tableHeader: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
+  headerText: { fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "uppercase" },
+  row: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, alignItems: "center" },
+  cell: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  colDate: { flex: 2 },
+  colType: { flex: 1, alignItems: "flex-start" },
+  colAmount: { flex: 2, textAlign: "right" },
+  colBalance: { flex: 2, textAlign: "right" },
+  typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  typeText: { fontSize: 10, fontFamily: "Inter_700Bold" },
+});

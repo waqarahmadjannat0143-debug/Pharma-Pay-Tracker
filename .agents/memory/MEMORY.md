@@ -1,0 +1,3 @@
+- [Express 5 param types](express5-param-types.md) — `req.params.id` types as `string | string[]`; always cast `as string` before `parseInt`
+- [MedPay auth pattern](medpay-auth.md) — JWT in AsyncStorage; module-level token via `getToken()`/`setToken()` in `lib/apiToken.ts`; `setAuthTokenGetter(getToken)` at module load in `_layout.tsx`
+- [Orval hook options pattern](orval-hook-options.md) — Passing `enabled` or partial `UseQueryOptions` to orval hooks requires `queryKey`; avoid passing query options unless you include the full `queryKey`

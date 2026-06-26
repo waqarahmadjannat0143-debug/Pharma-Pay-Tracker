@@ -1,22 +1,32 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Medical Agency Payment Management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: customers
+    description: Medical store customer management
+  - name: invoices
+    description: Invoice management
+  - name: payments
+    description: Payment management
+  - name: dashboard
+    description: Dashboard statistics
+  - name: reports
+    description: Reports
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +34,493 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Admin logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /customers:
+    get:
+      operationId: getCustomers
+      tags: [customers]
+      summary: List all customers
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Customer"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create a new customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+
+  /customers/{id}:
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      summary: Get customer by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Customer detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      summary: Update customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Delete customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /customers/{id}/ledger:
+    get:
+      operationId: getCustomerLedger
+      tags: [customers]
+      summary: Get customer ledger
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ledger entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LedgerEntry"
+
+  /customers/{id}/invoices:
+    get:
+      operationId: getCustomerInvoices
+      tags: [customers]
+      summary: Get invoices for a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Customer invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+
+  /invoices:
+    get:
+      operationId: getInvoices
+      tags: [invoices]
+      summary: List all invoices
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+        - name: toDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create a new invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceInput"
+      responses:
+        "201":
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateInvoice
+      tags: [invoices]
+      summary: Update invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceUpdate"
+      responses:
+        "200":
+          description: Updated invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      summary: Delete invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /payments:
+    get:
+      operationId: getPayments
+      tags: [payments]
+      summary: List all payments
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+        - name: toDate
+          in: query
+          schema:
+            type: string
+        - name: paymentMode
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+    post:
+      operationId: recordPayment
+      tags: [payments]
+      summary: Record a payment (auto-adjusts against oldest invoices)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /payments/{id}:
+    get:
+      operationId: getPayment
+      tags: [payments]
+      summary: Get payment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payment detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/monthly-collections:
+    get:
+      operationId: getMonthlyCollections
+      tags: [dashboard]
+      summary: Get monthly collection data for charts
+      responses:
+        "200":
+          description: Monthly collections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyCollection"
+
+  /reports/outstanding:
+    get:
+      operationId: getOutstandingReport
+      tags: [reports]
+      summary: Outstanding report
+      responses:
+        "200":
+          description: Outstanding amounts per customer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OutstandingReport"
+
+  /reports/overdue:
+    get:
+      operationId: getOverdueReport
+      tags: [reports]
+      summary: Overdue invoices report
+      responses:
+        "200":
+          description: Overdue invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OverdueReport"
+
+  /reports/payment-history:
+    get:
+      operationId: getPaymentHistory
+      tags: [reports]
+      summary: Payment history report
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+        - name: toDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+
+  /reports/date-wise-collection:
+    get:
+      operationId: getDateWiseCollection
+      tags: [reports]
+      summary: Date-wise collection report
+      parameters:
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+        - name: toDate
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Date-wise collections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DateWiseCollection"
+
+  /reports/monthly-collection:
+    get:
+      operationId: getMonthlyCollectionReport
+      tags: [reports]
+      summary: Monthly collection report
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly collection report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyCollection"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +531,301 @@ components:
       required:
         - status
 
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    LoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [token, username]
+      properties:
+        token:
+          type: string
+        username:
+          type: string
+
+    Customer:
+      type: object
+      required: [id, name, ownerName, mobile, address, creditLimit, dueDays, totalOutstanding, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        ownerName:
+          type: string
+        mobile:
+          type: string
+        gstNumber:
+          type: ["string", "null"]
+        address:
+          type: string
+        creditLimit:
+          type: number
+        dueDays:
+          type: integer
+        totalOutstanding:
+          type: number
+        createdAt:
+          type: string
+
+    CustomerInput:
+      type: object
+      required: [name, ownerName, mobile, address, creditLimit, dueDays]
+      properties:
+        name:
+          type: string
+        ownerName:
+          type: string
+        mobile:
+          type: string
+        gstNumber:
+          type: string
+        address:
+          type: string
+        creditLimit:
+          type: number
+        dueDays:
+          type: integer
+
+    CustomerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        ownerName:
+          type: string
+        mobile:
+          type: string
+        gstNumber:
+          type: string
+        address:
+          type: string
+        creditLimit:
+          type: number
+        dueDays:
+          type: integer
+
+    Invoice:
+      type: object
+      required: [id, customerId, customerName, invoiceNumber, invoiceDate, billAmount, dueDate, outstandingBalance, status, createdAt]
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+        billAmount:
+          type: number
+        dueDate:
+          type: string
+        outstandingBalance:
+          type: number
+        status:
+          type: string
+          enum: [paid, partial, pending, overdue]
+        createdAt:
+          type: string
+
+    InvoiceInput:
+      type: object
+      required: [customerId, invoiceNumber, invoiceDate, billAmount, dueDate]
+      properties:
+        customerId:
+          type: integer
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+        billAmount:
+          type: number
+        dueDate:
+          type: string
+
+    InvoiceUpdate:
+      type: object
+      properties:
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+        billAmount:
+          type: number
+        dueDate:
+          type: string
+        status:
+          type: string
+
+    Payment:
+      type: object
+      required: [id, customerId, customerName, paymentDate, amount, paymentMode, createdAt]
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        paymentDate:
+          type: string
+        amount:
+          type: number
+        paymentMode:
+          type: string
+          enum: [cash, upi, bank_transfer, cheque]
+        notes:
+          type: ["string", "null"]
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentAllocation"
+        createdAt:
+          type: string
+
+    PaymentAllocation:
+      type: object
+      required: [invoiceId, invoiceNumber, amount]
+      properties:
+        invoiceId:
+          type: integer
+        invoiceNumber:
+          type: string
+        amount:
+          type: number
+
+    PaymentInput:
+      type: object
+      required: [customerId, paymentDate, amount, paymentMode]
+      properties:
+        customerId:
+          type: integer
+        paymentDate:
+          type: string
+        amount:
+          type: number
+        paymentMode:
+          type: string
+          enum: [cash, upi, bank_transfer, cheque]
+        notes:
+          type: string
+
+    DashboardStats:
+      type: object
+      required: [totalOutstanding, totalPaid, todayCollection, thisMonthCollection, totalCustomers, overdueCount, dueIn3DaysCount]
+      properties:
+        totalOutstanding:
+          type: number
+        totalPaid:
+          type: number
+        todayCollection:
+          type: number
+        thisMonthCollection:
+          type: number
+        totalCustomers:
+          type: integer
+        overdueCount:
+          type: integer
+        dueIn3DaysCount:
+          type: integer
+
+    MonthlyCollection:
+      type: object
+      required: [month, year, amount, label]
+      properties:
+        month:
+          type: integer
+        year:
+          type: integer
+        amount:
+          type: number
+        label:
+          type: string
+
+    LedgerEntry:
+      type: object
+      required: [date, type, amount, balance]
+      properties:
+        date:
+          type: string
+        type:
+          type: string
+          enum: [invoice, payment]
+        invoiceNumber:
+          type: ["string", "null"]
+        amount:
+          type: number
+        balance:
+          type: number
+        notes:
+          type: ["string", "null"]
+
+    OutstandingReport:
+      type: object
+      required: [customerId, customerName, mobile, totalOutstanding, invoiceCount]
+      properties:
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        mobile:
+          type: string
+        totalOutstanding:
+          type: number
+        invoiceCount:
+          type: integer
+        oldestDueDate:
+          type: ["string", "null"]
+
+    OverdueReport:
+      type: object
+      required: [invoiceId, invoiceNumber, customerId, customerName, mobile, billAmount, outstandingBalance, dueDate, daysOverdue]
+      properties:
+        invoiceId:
+          type: integer
+        invoiceNumber:
+          type: string
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        mobile:
+          type: string
+        billAmount:
+          type: number
+        outstandingBalance:
+          type: number
+        dueDate:
+          type: string
+        daysOverdue:
+          type: integer
+
+    DateWiseCollection:
+      type: object
+      required: [date, amount, count]
+      properties:
+        date:
+          type: string
+        amount:
+          type: number
+        count:
+          type: integer
