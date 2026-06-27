@@ -7,6 +7,7 @@ import { useColors } from "@/hooks/useColors";
 import { PaymentCard } from "@/components/PaymentCard";
 import { EmptyState } from "@/components/EmptyState";
 import { useGetPayments } from "@workspace/api-client-react";
+import { generateReceiptPdf } from "@/lib/generatePdf";
 
 const MODE_FILTERS = ["all", "cash", "upi", "bank_transfer", "cheque"] as const;
 const MODE_LABELS: Record<string, string> = { all: "All", cash: "Cash", upi: "UPI", bank_transfer: "Bank", cheque: "Cheque" };
@@ -78,7 +79,23 @@ export default function PaymentsScreen() {
         <FlatList
           data={payments ?? []}
           keyExtractor={item => String(item.id)}
-          renderItem={({ item }) => <PaymentCard payment={item} onPress={() => {}} />}
+          renderItem={({ item }) => (
+            <PaymentCard
+              payment={item}
+              onPress={() => {}}
+              onReceipt={() =>
+                generateReceiptPdf({
+                  id: item.id,
+                  customerName: item.customerName,
+                  amount: item.amount,
+                  paymentDate: item.paymentDate,
+                  paymentMode: item.paymentMode,
+                  referenceNumber: (item as any).referenceNumber,
+                  notes: (item as any).notes,
+                })
+              }
+            />
+          )}
           ListEmptyComponent={
             <EmptyState
               icon="credit-card"

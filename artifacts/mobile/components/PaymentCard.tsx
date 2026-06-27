@@ -8,6 +8,7 @@ interface PaymentCardProps {
   payment: Payment;
   showCustomer?: boolean;
   onPress?: () => void;
+  onReceipt?: () => void;
 }
 
 const modeIcons: Record<string, keyof typeof Feather.glyphMap> = {
@@ -33,7 +34,7 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function PaymentCard({ payment, showCustomer = true, onPress }: PaymentCardProps) {
+export function PaymentCard({ payment, showCustomer = true, onPress, onReceipt }: PaymentCardProps) {
   const colors = useColors();
   const icon = modeIcons[payment.paymentMode] || "credit-card";
   return (
@@ -47,13 +48,37 @@ export function PaymentCard({ payment, showCustomer = true, onPress }: PaymentCa
           <Feather name={icon} size={20} color={colors.paid} />
         </View>
         <View style={styles.info}>
-          {showCustomer && <Text style={[styles.customer, { color: colors.foreground }]} numberOfLines={1}>{payment.customerName}</Text>}
-          <Text style={[styles.mode, { color: colors.mutedForeground }]}>{modeLabels[payment.paymentMode] || payment.paymentMode}</Text>
-          <Text style={[styles.date, { color: colors.mutedForeground }]}>{formatDate(payment.paymentDate)}</Text>
+          {showCustomer && (
+            <Text style={[styles.customer, { color: colors.foreground }]} numberOfLines={1}>
+              {payment.customerName}
+            </Text>
+          )}
+          <Text style={[styles.mode, { color: colors.mutedForeground }]}>
+            {modeLabels[payment.paymentMode] || payment.paymentMode}
+          </Text>
+          <Text style={[styles.date, { color: colors.mutedForeground }]}>
+            {formatDate(payment.paymentDate)}
+          </Text>
         </View>
-        <Text style={[styles.amount, { color: colors.paid }]}>{formatCurrency(payment.amount)}</Text>
+        <View style={styles.rightCol}>
+          <Text style={[styles.amount, { color: colors.paid }]}>{formatCurrency(payment.amount)}</Text>
+          {onReceipt && (
+            <TouchableOpacity
+              style={[styles.receiptBtn, { borderColor: colors.border }]}
+              onPress={onReceipt}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="download" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.receiptText, { color: colors.mutedForeground }]}>Receipt</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-      {payment.notes && <Text style={[styles.notes, { color: colors.mutedForeground }]} numberOfLines={2}>{payment.notes}</Text>}
+      {payment.notes && (
+        <Text style={[styles.notes, { color: colors.mutedForeground }]} numberOfLines={2}>
+          {payment.notes}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 }
@@ -67,22 +92,23 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     gap: 8,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   info: { flex: 1, gap: 2 },
   customer: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   mode: { fontSize: 12, fontFamily: "Inter_400Regular" },
   date: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  rightCol: { alignItems: "flex-end", gap: 6 },
   amount: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  receiptBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  receiptText: { fontSize: 10, fontFamily: "Inter_500Medium" },
   notes: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
 });

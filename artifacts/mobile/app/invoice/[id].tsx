@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Platform } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useGetInvoice, useDeleteInvoice, getGetInvoicesQueryKey, getGetDashboardStatsQueryKey } from "@workspace/api-client-react";
+import { generateInvoicePdf } from "@/lib/generatePdf";
 
 function formatCurrency(amount: number) {
   return "₹" + amount.toLocaleString("en-IN", { minimumFractionDigits: 2 });
@@ -39,10 +40,27 @@ export default function InvoiceDetailScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const invoiceId = parseInt(id);
   const { data: invoice, isLoading } = useGetInvoice(invoiceId);
   const { mutateAsync: deleteInvoice } = useDeleteInvoice();
+
+  const handleExportPdf = async () => {
+    if (!invoice) return;
+    setPdfLoading(true);
+    await generateInvoicePdf({
+      invoiceNumber: invoice.invoiceNumber,
+      customerName: invoice.customerName,
+      invoiceDate: invoice.invoiceDate,
+      dueDate: invoice.dueDate,
+      billAmount: invoice.billAmount,
+      outstandingBalance: invoice.outstandingBalance,
+      status: invoice.status,
+      notes: (invoice as any).notes,
+    });
+    setPdfLoading(false);
+  };
 
   const handleDelete = () => {
     Alert.alert("Delete Invoice", "Are you sure you want to delete this invoice?", [
@@ -75,6 +93,19 @@ export default function InvoiceDetailScreen() {
         </View>
 
         <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}
+            onPress={handleExportPdf}
+            disabled={pdfLoading}
+          >
+            {pdfLoading
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Feather name="download" size={16} color={colors.primary} />
+            }
+            <Text style={[styles.actionBtnText, { color: colors.primary }]}>
+              {pdfLoading ? "Generating..." : "Export PDF"}
+            </Text>
+          </TouchableOpacity>
           {invoice.outstandingBalance > 0 && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.paid + "15", borderColor: colors.paid + "40" }]}
