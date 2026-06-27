@@ -9,6 +9,7 @@ interface PaymentCardProps {
   showCustomer?: boolean;
   onPress?: () => void;
   onReceipt?: () => void;
+  onWhatsApp?: () => void;
 }
 
 const modeIcons: Record<string, keyof typeof Feather.glyphMap> = {
@@ -34,7 +35,7 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function PaymentCard({ payment, showCustomer = true, onPress, onReceipt }: PaymentCardProps) {
+export function PaymentCard({ payment, showCustomer = true, onPress, onReceipt, onWhatsApp }: PaymentCardProps) {
   const colors = useColors();
   const icon = modeIcons[payment.paymentMode] || "credit-card";
   return (
@@ -62,16 +63,28 @@ export function PaymentCard({ payment, showCustomer = true, onPress, onReceipt }
         </View>
         <View style={styles.rightCol}>
           <Text style={[styles.amount, { color: colors.paid }]}>{formatCurrency(payment.amount)}</Text>
-          {onReceipt && (
-            <TouchableOpacity
-              style={[styles.receiptBtn, { borderColor: colors.border }]}
-              onPress={onReceipt}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Feather name="download" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.receiptText, { color: colors.mutedForeground }]}>Receipt</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.btnRow}>
+            {onReceipt && (
+              <TouchableOpacity
+                style={[styles.actionBtn, { borderColor: colors.border }]}
+                onPress={onReceipt}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="download" size={12} color={colors.mutedForeground} />
+                <Text style={[styles.actionBtnText, { color: colors.mutedForeground }]}>PDF</Text>
+              </TouchableOpacity>
+            )}
+            {onWhatsApp && (
+              <TouchableOpacity
+                style={[styles.actionBtn, { borderColor: "#25D366" + "60", backgroundColor: "#25D366" + "12" }]}
+                onPress={onWhatsApp}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="message-circle" size={12} color="#25D366" />
+                <Text style={[styles.actionBtnText, { color: "#25D366" }]}>Send</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
       {payment.notes && (
@@ -100,15 +113,16 @@ const styles = StyleSheet.create({
   date: { fontSize: 11, fontFamily: "Inter_400Regular" },
   rightCol: { alignItems: "flex-end", gap: 6 },
   amount: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  receiptBtn: {
+  btnRow: { flexDirection: "row", gap: 5 },
+  actionBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
+    gap: 3,
+    paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
   },
-  receiptText: { fontSize: 10, fontFamily: "Inter_500Medium" },
+  actionBtnText: { fontSize: 10, fontFamily: "Inter_500Medium" },
   notes: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
 });

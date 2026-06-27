@@ -8,6 +8,7 @@ import { useColors } from "@/hooks/useColors";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useGetInvoice, useDeleteInvoice, getGetInvoicesQueryKey, getGetDashboardStatsQueryKey } from "@workspace/api-client-react";
 import { generateInvoicePdf } from "@/lib/generatePdf";
+import { shareInvoiceOnWhatsApp } from "@/lib/shareWhatsApp";
 
 function formatCurrency(amount: number) {
   return "₹" + amount.toLocaleString("en-IN", { minimumFractionDigits: 2 });
@@ -41,6 +42,7 @@ export default function InvoiceDetailScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [waLoading, setWaLoading] = useState(false);
 
   const invoiceId = parseInt(id);
   const { data: invoice, isLoading } = useGetInvoice(invoiceId);
@@ -60,6 +62,21 @@ export default function InvoiceDetailScreen() {
       notes: (invoice as any).notes,
     });
     setPdfLoading(false);
+  };
+
+  const handleWhatsApp = async () => {
+    if (!invoice) return;
+    setWaLoading(true);
+    await shareInvoiceOnWhatsApp({
+      invoiceNumber: invoice.invoiceNumber,
+      customerName: invoice.customerName,
+      invoiceDate: invoice.invoiceDate,
+      dueDate: invoice.dueDate,
+      billAmount: invoice.billAmount,
+      outstandingBalance: invoice.outstandingBalance,
+      status: invoice.status,
+    });
+    setWaLoading(false);
   };
 
   const handleDelete = () => {
@@ -92,36 +109,58 @@ export default function InvoiceDetailScreen() {
           <StatusBadge status={invoice.status} />
         </View>
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}
-            onPress={handleExportPdf}
-            disabled={pdfLoading}
-          >
-            {pdfLoading
-              ? <ActivityIndicator size="small" color={colors.primary} />
-              : <Feather name="download" size={16} color={colors.primary} />
-            }
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>
-              {pdfLoading ? "Generating..." : "Export PDF"}
-            </Text>
-          </TouchableOpacity>
-          {invoice.outstandingBalance > 0 && (
+        {/* ── Action Buttons ── */}
+        <View style={styles.actionGrid}>
+          {/* Row 1: PDF + WhatsApp */}
+          <View style={styles.actionRow}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.paid + "15", borderColor: colors.paid + "40" }]}
-              onPress={() => router.push({ pathname: "/payment/add", params: { customerId: String(invoice.customerId), customerName: invoice.customerName } })}
+              style={[styles.actionBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}
+              onPress={handleExportPdf}
+              disabled={pdfLoading}
             >
-              <Feather name="plus-circle" size={16} color={colors.paid} />
-              <Text style={[styles.actionBtnText, { color: colors.paid }]}>Record Payment</Text>
+              {pdfLoading
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Feather name="download" size={16} color={colors.primary} />
+              }
+              <Text style={[styles.actionBtnText, { color: colors.primary }]}>
+                {pdfLoading ? "Generating..." : "Export PDF"}
+              </Text>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.destructive + "15", borderColor: colors.destructive + "40" }]}
-            onPress={handleDelete}
-          >
-            <Feather name="trash-2" size={16} color={colors.destructive} />
-            <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Delete</Text>
-          </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: "#25D366" + "15", borderColor: "#25D366" + "50" }]}
+              onPress={handleWhatsApp}
+              disabled={waLoading}
+            >
+              {waLoading
+                ? <ActivityIndicator size="small" color="#25D366" />
+                : <Feather name="message-circle" size={16} color="#25D366" />
+              }
+              <Text style={[styles.actionBtnText, { color: "#25D366" }]}>
+                {waLoading ? "Opening..." : "WhatsApp"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Row 2: Record Payment + Delete */}
+          <View style={styles.actionRow}>
+            {invoice.outstandingBalance > 0 && (
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: colors.paid + "15", borderColor: colors.paid + "40" }]}
+                onPress={() => router.push({ pathname: "/payment/add", params: { customerId: String(invoice.customerId), customerName: invoice.customerName } })}
+              >
+                <Feather name="plus-circle" size={16} color={colors.paid} />
+                <Text style={[styles.actionBtnText, { color: colors.paid }]}>Record Payment</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: colors.destructive + "15", borderColor: colors.destructive + "40" }]}
+              onPress={handleDelete}
+            >
+              <Feather name="trash-2" size={16} color={colors.destructive} />
+              <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -137,6 +176,14 @@ export default function InvoiceDetailScreen() {
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <InfoRow label="Amount Paid" value={formatCurrency(invoice.billAmount - invoice.outstandingBalance)} valueColor={colors.paid} />
         </View>
+
+        {/* ── WhatsApp hint ── */}
+        <View style={[styles.whatsappHint, { backgroundColor: "#25D366" + "0D", borderColor: "#25D366" + "30" }]}>
+          <Feather name="message-circle" size={14} color="#25D366" />
+          <Text style={[styles.whatsappHintText, { color: "#128C7E" }]}>
+            Tap "WhatsApp" to send this invoice directly to the store's WhatsApp. Opens WhatsApp with a pre-filled message.
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -150,10 +197,13 @@ const styles = StyleSheet.create({
   invoiceNo: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.85)" },
   customerName: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
   heroAmount: { fontSize: 32, fontFamily: "Inter_700Bold", color: "#fff", letterSpacing: -1 },
-  actionRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16 },
+  actionGrid: { paddingHorizontal: 16, gap: 8 },
+  actionRow: { flexDirection: "row", gap: 8 },
   actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 10, borderWidth: 1 },
   actionBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   card: { marginHorizontal: 16, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16, overflow: "hidden" },
   cardTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", paddingVertical: 14 },
   divider: { height: 1 },
+  whatsappHint: { marginHorizontal: 16, borderRadius: 10, borderWidth: 1, padding: 12, flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  whatsappHintText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
 });
