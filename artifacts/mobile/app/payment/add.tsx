@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import {
-  useRecordPayment, useGetCustomers,
+  useRecordPayment, useGetCustomers, useGetCustomerInvoices,
   getGetPaymentsQueryKey, getGetDashboardStatsQueryKey,
   getGetInvoicesQueryKey, getGetCustomersQueryKey,
 } from "@workspace/api-client-react";
@@ -20,6 +20,30 @@ const MODES: { key: PaymentMode; label: string; icon: keyof typeof Feather.glyph
   { key: "cheque", label: "Cheque", icon: "file-text" },
 ];
 
+function todayDisplay() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+}
+
+function displayDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return y && m && d ? `${d}-${m}-${y}` : iso;
+}
+
+function toIsoDate(display: string) {
+  const match = display.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (!match) return null;
+  const [, d, m, y] = match;
+  const day = Number(d), month = Number(m), year = Number(y);
+  const dt = new Date(year, month - 1, day);
+  if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return null;
+  return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function money(n: number) {
+  return `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
 export default function AddPaymentScreen() {
   const colors = useColors();
   const router = useRouter();
@@ -31,24 +55,82 @@ export default function AddPaymentScreen() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(params.customerId || "");
   const [selectedCustomerName, setSelectedCustomerName] = useState(params.customerName || "");
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>([]);
   const [amount, setAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [paymentDate, setPaymentDate] = useState(todayDisplay());
   const [notes, setNotes] = useState("");
 
+  const customerIdNumber = selectedCustomerId ? parseInt(selectedCustomerId) : 0;
+  const { data: invoices, isLoading: invoicesLoading } = useGetCustomerInvoices(customerIdNumber);
+
+  const pendingInvoices = useMemo(
+    () => (invoices ?? []).filter(inv => inv.outstandingBalance > 0 && inv.status !== "paid"),
+    [invoices],
+  );
+
+  const selectedTotal = useMemo(
+    () => pendingInvoices
+      .filter(inv => selectedInvoiceIds.includes(inv.id))
+      .reduce((sum, inv) => sum + Number(inv.outstandingBalance || 0), 0),
+    [pendingInvoices, selectedInvoiceIds],
+  );
+
+  const chooseCustomer = (id: number, name: string) => {
+    setSelectedCustomerId(String(id));
+    setSelectedCustomerName(name);
+    setSelectedInvoiceIds([]);
+    setAmount("");
+    setShowCustomerPicker(false);
+  };
+
+  const toggleInvoice = (invoiceId: number) => {
+    const next = selectedInvoiceIds.includes(invoiceId)
+      ? selectedInvoiceIds.filter(id => id !== invoiceId)
+      : [...selectedInvoiceIds, invoiceId];
+    setSelectedInvoiceIds(next);
+
+    const nextTotal = pendingInvoices
+      .filter(inv => next.includes(inv.id))
+      .reduce((sum, inv) => sum + Number(inv.outstandingBalance || 0), 0);
+    setAmount(nextTotal > 0 ? nextTotal.toFixed(2) : "");
+  };
+
   const handleSave = async () => {
-    if (!selectedCustomerId || !amount || parseFloat(amount) <= 0) {
-      Alert.alert("Validation", "Please select a store and enter a valid amount");
+    const isoDate = toIsoDate(paymentDate);
+    const numericAmount = parseFloat(amount);
+
+    if (!selectedCustomerId) {
+      Alert.alert("Validation", "Please select a medical store");
       return;
     }
+    if (selectedInvoiceIds.length === 0) {
+      Alert.alert("Validation", "Please select at least one bill");
+      return;
+    }
+    if (!isoDate) {
+      Alert.alert("Validation", "Enter date in DD-MM-YYYY format");
+      return;
+    }
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      Alert.alert("Validation", "Please enter a valid payment amount");
+      return;
+    }
+    if (numericAmount > selectedTotal + 0.001) {
+      Alert.alert("Validation", "Payment cannot exceed selected bills outstanding");
+      return;
+    }
+
     try {
       const result = await mutateAsync({ data: {
         customerId: parseInt(selectedCustomerId),
-        paymentDate,
-        amount: parseFloat(amount),
+        paymentDate: isoDate,
+        amount: numericAmount,
         paymentMode,
         notes: notes.trim() || undefined,
-      }});
+        invoiceIds: selectedInvoiceIds,
+      } as any });
+
       queryClient.invalidateQueries({ queryKey: getGetPaymentsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
@@ -57,11 +139,11 @@ export default function AddPaymentScreen() {
       const allocated = result.allocations?.length || 0;
       Alert.alert(
         "Payment Recorded",
-        `₹${parseFloat(amount).toLocaleString("en-IN")} recorded successfully.\n${allocated} invoice(s) updated.`,
-        [{ text: "OK", onPress: () => router.back() }]
+        `${money(numericAmount)} paid successfully.\n${allocated} bill(s) updated.`,
+        [{ text: "OK", onPress: () => router.back() }],
       );
-    } catch {
-      Alert.alert("Error", "Failed to record payment.");
+    } catch (err: any) {
+      Alert.alert("Error", err?.message || "Failed to record payment.");
     }
   };
 
@@ -88,13 +170,11 @@ export default function AddPaymentScreen() {
                   <TouchableOpacity
                     key={c.id}
                     style={[styles.pickerItem, { borderBottomColor: colors.border }]}
-                    onPress={() => { setSelectedCustomerId(String(c.id)); setSelectedCustomerName(c.name); setShowCustomerPicker(false); }}
+                    onPress={() => chooseCustomer(c.id, c.name)}
                   >
                     <Text style={[styles.pickerText, { color: colors.foreground }]}>{c.name}</Text>
                     {c.totalOutstanding > 0 && (
-                      <Text style={[styles.pickerSub, { color: colors.overdue }]}>
-                        Dues: ₹{c.totalOutstanding.toLocaleString("en-IN")}
-                      </Text>
+                      <Text style={[styles.pickerSub, { color: colors.overdue }]}>Dues: {money(c.totalOutstanding)}</Text>
                     )}
                   </TouchableOpacity>
                 ))}
@@ -103,14 +183,79 @@ export default function AddPaymentScreen() {
           )}
         </View>
 
+        {selectedCustomerId ? (
+          <View style={styles.field}>
+            <View style={styles.billsHeader}>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>Select Bills *</Text>
+              {selectedInvoiceIds.length > 0 && (
+                <Text style={[styles.selectedTotal, { color: colors.primary }]}>Selected: {money(selectedTotal)}</Text>
+              )}
+            </View>
+
+            {invoicesLoading ? (
+              <View style={styles.billLoader}><ActivityIndicator color={colors.primary} /></View>
+            ) : pendingInvoices.length === 0 ? (
+              <View style={[styles.emptyBills, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                <Feather name="check-circle" size={18} color={colors.paid} />
+                <Text style={[styles.emptyBillsText, { color: colors.mutedForeground }]}>No pending bills for this store</Text>
+              </View>
+            ) : (
+              <View style={[styles.billList, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                {pendingInvoices.map((inv, index) => {
+                  const selected = selectedInvoiceIds.includes(inv.id);
+                  return (
+                    <TouchableOpacity
+                      key={inv.id}
+                      style={[
+                        styles.billRow,
+                        index < pendingInvoices.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                        selected && { backgroundColor: colors.primary + "0D" },
+                      ]}
+                      onPress={() => toggleInvoice(inv.id)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[
+                        styles.checkbox,
+                        { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : "transparent" },
+                      ]}>
+                        {selected && <Feather name="check" size={14} color="#fff" />}
+                      </View>
+                      <View style={styles.billInfo}>
+                        <Text style={[styles.billNo, { color: colors.foreground }]}>Bill #{inv.invoiceNumber}</Text>
+                        <Text style={[styles.billMeta, { color: colors.mutedForeground }]}>
+                          {displayDate(inv.invoiceDate)} · Due {displayDate(inv.dueDate)}
+                        </Text>
+                      </View>
+                      <View style={styles.billAmounts}>
+                        <Text style={[styles.billOutstanding, { color: colors.overdue }]}>{money(inv.outstandingBalance)}</Text>
+                        <Text style={[styles.billOriginal, { color: colors.mutedForeground }]}>of {money(inv.billAmount)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        ) : null}
+
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Payment Date *</Text>
-          <TextInput value={paymentDate} onChangeText={setPaymentDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.mutedForeground} style={inputStyle} />
+          <TextInput
+            value={paymentDate}
+            onChangeText={setPaymentDate}
+            placeholder="DD-MM-YYYY"
+            placeholderTextColor={colors.mutedForeground}
+            keyboardType="numbers-and-punctuation"
+            style={inputStyle}
+          />
         </View>
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Amount (₹) *</Text>
           <TextInput value={amount} onChangeText={setAmount} placeholder="0.00" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" style={inputStyle} />
+          {selectedInvoiceIds.length > 0 && (
+            <Text style={[styles.amountHint, { color: colors.mutedForeground }]}>You can enter a lower amount for partial payment.</Text>
+          )}
         </View>
 
         <View style={styles.field}>
@@ -149,16 +294,14 @@ export default function AddPaymentScreen() {
 
         <View style={[styles.autoNote, { backgroundColor: colors.accent, borderColor: colors.accentForeground + "30" }]}>
           <Feather name="info" size={14} color={colors.accentForeground} />
-          <Text style={[styles.autoNoteText, { color: colors.accentForeground }]}>
-            Payment will be auto-adjusted against oldest pending invoices first.
-          </Text>
+          <Text style={[styles.autoNoteText, { color: colors.accentForeground }]}>Only the bills you select above will be adjusted.</Text>
         </View>
 
         <TouchableOpacity
           style={[styles.saveBtn, { backgroundColor: colors.paid }, isPending && { opacity: 0.7 }]}
           onPress={handleSave} disabled={isPending} activeOpacity={0.8}
         >
-          {isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Record Payment</Text>}
+          {isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Pay Selected Bills</Text>}
         </TouchableOpacity>
       </KeyboardAwareScrollViewCompat>
     </View>
@@ -178,6 +321,21 @@ const styles = StyleSheet.create({
   pickerItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, gap: 2 },
   pickerText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   pickerSub: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  billsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  selectedTotal: { fontSize: 12, fontFamily: "Inter_700Bold" },
+  billLoader: { paddingVertical: 18, alignItems: "center" },
+  emptyBills: { borderWidth: 1, borderRadius: 10, padding: 14, flexDirection: "row", gap: 8, alignItems: "center" },
+  emptyBillsText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  billList: { borderWidth: 1, borderRadius: 12, overflow: "hidden" },
+  billRow: { flexDirection: "row", alignItems: "center", padding: 12, gap: 10 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  billInfo: { flex: 1, gap: 2 },
+  billNo: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  billMeta: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  billAmounts: { alignItems: "flex-end", gap: 1 },
+  billOutstanding: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  billOriginal: { fontSize: 9, fontFamily: "Inter_400Regular" },
+  amountHint: { fontSize: 10, fontFamily: "Inter_400Regular" },
   modesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   modeBtn: { flex: 1, minWidth: "45%", flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1 },
   modeBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
