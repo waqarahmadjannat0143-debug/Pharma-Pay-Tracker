@@ -58,7 +58,33 @@ router.post("/restore", async (req: AuthRequest, res) => {
       return;
     }
 
-    const { customers, invoices, payments, paymentAllocations } = backup.data;
+    const customers = backup.data.customers.map((row: any) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+    }));
+    const invoices = backup.data.invoices.map((row: any) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+    }));
+    const payments = backup.data.payments.map((row: any) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+    }));
+    const paymentAllocations = backup.data.paymentAllocations.map((row: any) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+    }));
+
+    const hasInvalidDate = [...customers, ...invoices, ...payments, ...paymentAllocations].some((row: any) =>
+      row.createdAt instanceof Date && Number.isNaN(row.createdAt.getTime())
+    );
+    if (hasInvalidDate) {
+      res.status(400).json({ error: "Backup contains invalid timestamps" });
+      return;
+    }
 
     await db.transaction(async (tx) => {
       await tx.delete(paymentAllocationsTable);
