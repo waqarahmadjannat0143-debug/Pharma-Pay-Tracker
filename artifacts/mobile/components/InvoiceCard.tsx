@@ -16,8 +16,8 @@ function formatCurrency(amount: number) {
 }
 
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+  const [y, m, d] = dateStr.split("-");
+  return y && m && d ? `${d}-${m}-${y}` : dateStr;
 }
 
 function statusAccent(status: string, colors: any) {
@@ -99,14 +99,7 @@ export function InvoiceCard({ invoice, onPress, showCustomer = true }: InvoiceCa
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    borderRadius: 14,
-    borderWidth: 1,
-    marginHorizontal: 16,
-    marginVertical: 4,
-    overflow: "hidden",
-  },
+  card: { flexDirection: "row", borderRadius: 14, borderWidth: 1, marginHorizontal: 16, marginVertical: 4, overflow: "hidden" },
   accentBar: { width: 4 },
   body: { flex: 1, padding: 14, gap: 10 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
