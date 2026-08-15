@@ -23,7 +23,18 @@ const apiDomain = process.env.EXPO_PUBLIC_DOMAIN || "pharma-pay-tracker.onrender
 setBaseUrl(`https://${apiDomain}`);
 setAuthTokenGetter(getToken);
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: true,
+    },
+  },
+});
 
 function RootLayoutNav() {
   const { isAuthenticated, isLoading } = useAuth();
