@@ -4,25 +4,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
+import { formatDateDDMMYY, ddmmyyToISO } from "@/lib/dateFormat";
 import { useCreateInvoice, useGetCustomers, getGetInvoicesQueryKey, getGetCustomerInvoicesQueryKey } from "@workspace/api-client-react";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 function todayDisplay() {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-}
-function toIsoDate(display: string) {
-  const match = display.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-  if (!match) return null;
-  const [, d, m, y] = match;
-  const day = Number(d), month = Number(m), year = Number(y);
-  const dt = new Date(year, month - 1, day);
-  if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return null;
-  return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-function displayDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return y && m && d ? `${d}-${m}-${y}` : iso;
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
 }
 
 export default function AddInvoiceScreen() {
@@ -41,7 +29,7 @@ export default function AddInvoiceScreen() {
   const [billAmount, setBillAmount] = useState("");
   const [dueDays, setDueDays] = useState("30");
 
-  const invoiceIso = toIsoDate(invoiceDate);
+  const invoiceIso = ddmmyyToISO(invoiceDate);
   const dueDate = (() => {
     if (!invoiceIso) return "";
     const d = new Date(invoiceIso + "T00:00:00");
@@ -55,7 +43,7 @@ export default function AddInvoiceScreen() {
       return;
     }
     if (!invoiceIso) {
-      Alert.alert("Validation", "Enter invoice date in DD-MM-YYYY format");
+      Alert.alert("Validation", "Enter invoice date in DD-MM-YY format");
       return;
     }
     try {
@@ -105,7 +93,7 @@ export default function AddInvoiceScreen() {
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Invoice Date *</Text>
-          <TextInput value={invoiceDate} onChangeText={setInvoiceDate} placeholder="DD-MM-YYYY" placeholderTextColor={colors.mutedForeground} keyboardType="numbers-and-punctuation" style={inputStyle} />
+          <TextInput value={invoiceDate} onChangeText={setInvoiceDate} placeholder="DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="numbers-and-punctuation" style={inputStyle} />
         </View>
 
         <View style={styles.field}>
@@ -116,7 +104,7 @@ export default function AddInvoiceScreen() {
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Due in (days)</Text>
           <TextInput value={dueDays} onChangeText={setDueDays} placeholder="30" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" style={inputStyle} />
-          {dueDate && <Text style={[styles.dueText, { color: colors.mutedForeground }]}>Due date: {displayDate(dueDate)}</Text>}
+          {dueDate && <Text style={[styles.dueText, { color: colors.mutedForeground }]}>Due date: {formatDateDDMMYY(dueDate)}</Text>}
         </View>
 
         <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.primary }, isPending && { opacity: 0.7 }]} onPress={handleSave} disabled={isPending} activeOpacity={0.8}>
