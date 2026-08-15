@@ -31,8 +31,8 @@ function formatCurrency(amount: number) {
 }
 
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const [y, m, d] = dateStr.split("-");
+  return y && m && d ? `${d}-${m}-${y}` : dateStr;
 }
 
 export function PaymentCard({ payment, showCustomer = true, onPress, onReceipt, onWhatsApp }: PaymentCardProps) {
@@ -97,14 +97,7 @@ export function PaymentCard({ payment, showCustomer = true, onPress, onReceipt, 
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    marginHorizontal: 16,
-    marginVertical: 4,
-    gap: 8,
-  },
+  card: { borderRadius: 12, padding: 14, borderWidth: 1, marginHorizontal: 16, marginVertical: 4, gap: 8 },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   info: { flex: 1, gap: 2 },
@@ -114,15 +107,7 @@ const styles = StyleSheet.create({
   rightCol: { alignItems: "flex-end", gap: 6 },
   amount: { fontSize: 18, fontFamily: "Inter_700Bold" },
   btnRow: { flexDirection: "row", gap: 5 },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
   actionBtnText: { fontSize: 10, fontFamily: "Inter_500Medium" },
   notes: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
 });
