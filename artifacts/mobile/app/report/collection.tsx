@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Platform } from "react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Platform, TextInput } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { EmptyState } from "@/components/EmptyState";
@@ -9,53 +10,115 @@ function formatCurrency(amount: number) {
   return "₹" + amount.toLocaleString("en-IN", { minimumFractionDigits: 0 });
 }
 
+function iso(d: Date) {
+  return d.toISOString().split("T")[0];
+}
+function displayDate(value: string) {
+  if (!value) return "";
+  const [y, m, d] = value.split("-");
+  return `${d}-${m}-${y}`;
+}
+function parseDisplayDate(value: string) {
+  const m = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!m) return "";
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+type Preset = "today" | "week" | "month" | "year" | "custom" | "all";
+
 export default function CollectionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const [tab, setTab] = useState<"daily" | "monthly">("monthly");
+  const params = useLocalSearchParams<{ period?: string }>();
+  const initialPreset = (["today","week","month","year","custom","all"].includes(params.period || "") ? params.period : "month") as Preset;
+  const [preset, setPreset] = useState<Preset>(initialPreset);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
+  const range = useMemo(() => {
+    const now = new Date();
+    const today = iso(now);
+    if (preset === "today") return { fromDate: today, toDate: today };
+    if (preset === "week") {
+      const d = new Date(now); d.setDate(d.getDate() - 6);
+      return { fromDate: iso(d), toDate: today };
+    }
+    if (preset === "month") return { fromDate: `${today.slice(0,7)}-01`, toDate: today };
+    if (preset === "year") return { fromDate: `${today.slice(0,4)}-01-01`, toDate: today };
+    if (preset === "custom") return { fromDate: parseDisplayDate(customFrom) || undefined, toDate: parseDisplayDate(customTo) || undefined };
+    return {};
+  }, [preset, customFrom, customTo]);
+
   const year = new Date().getFullYear();
+  const { data: daily, isLoading: dailyLoading } = useGetDateWiseCollection(range);
+  const { data: monthly } = useGetMonthlyCollectionReport({ year });
+  const total = (daily ?? []).reduce((s, row) => s + row.amount, 0);
+  const count = (daily ?? []).reduce((s, row) => s + row.count, 0);
 
-  const { data: daily, isLoading: dailyLoading } = useGetDateWiseCollection();
-  const { data: monthly, isLoading: monthlyLoading } = useGetMonthlyCollectionReport({ year });
-
-  const isLoading = tab === "daily" ? dailyLoading : monthlyLoading;
-
-  const tabStyle = (active: boolean) => ({
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center" as const,
-    borderRadius: 8,
-    backgroundColor: active ? colors.primary : "transparent",
-  });
+  const chips: { key: Preset; label: string }[] = [
+    { key: "today", label: "Today" },
+    { key: "week", label: "7 Days" },
+    { key: "month", label: "This Month" },
+    { key: "year", label: "This Year" },
+    { key: "all", label: "All" },
+    { key: "custom", label: "Custom" },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.tabBar, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-        <TouchableOpacity style={tabStyle(tab === "monthly")} onPress={() => setTab("monthly")}>
-          <Text style={{ color: tab === "monthly" ? "#fff" : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Monthly ({year})</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={tabStyle(tab === "daily")} onPress={() => setTab("daily")}>
-          <Text style={{ color: tab === "daily" ? "#fff" : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Date-wise</Text>
-        </TouchableOpacity>
+      <View style={styles.filters}>
+        <FlatList
+          horizontal
+          data={chips}
+          keyExtractor={i => i.key}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8 }}
+          renderItem={({ item }) => {
+            const active = preset === item.key;
+            return (
+              <TouchableOpacity
+                style={[styles.chip, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]}
+                onPress={() => setPreset(item.key)}
+              >
+                <Text style={{ color: active ? "#fff" : colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{item.label}</Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+        {preset === "custom" && (
+          <View style={styles.customRow}>
+            <TextInput
+              value={customFrom}
+              onChangeText={setCustomFrom}
+              placeholder="From DD-MM-YYYY"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+            />
+            <TextInput
+              value={customTo}
+              onChangeText={setCustomTo}
+              placeholder="To DD-MM-YYYY"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+            />
+          </View>
+        )}
       </View>
 
-      {isLoading ? (
+      <View style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View>
+          <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>COLLECTION</Text>
+          <Text style={[styles.summaryAmount, { color: colors.paid }]}>{formatCurrency(total)}</Text>
+        </View>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>PAYMENTS</Text>
+          <Text style={[styles.summaryCount, { color: colors.foreground }]}>{count}</Text>
+        </View>
+      </View>
+
+      {dailyLoading ? (
         <View style={styles.loader}><ActivityIndicator color={colors.primary} size="large" /></View>
-      ) : tab === "monthly" ? (
-        <FlatList
-          data={monthly ?? []}
-          keyExtractor={item => `${item.year}-${item.month}`}
-          renderItem={({ item }) => (
-            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.period, { color: colors.foreground }]}>{item.label} {item.year}</Text>
-              <Text style={[styles.amount, { color: colors.paid }]}>{formatCurrency(item.amount)}</Text>
-            </View>
-          )}
-          ListEmptyComponent={<EmptyState icon="calendar" title="No data" subtitle="No collections recorded this year" />}
-          contentContainerStyle={{ paddingBottom: insets.bottom + (isWeb ? 34 : 20) }}
-          showsVerticalScrollIndicator={false}
-        />
       ) : (
         <FlatList
           data={daily ?? []}
@@ -63,15 +126,26 @@ export default function CollectionScreen() {
           renderItem={({ item }) => (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View>
-                <Text style={[styles.period, { color: colors.foreground }]}>{item.date}</Text>
+                <Text style={[styles.period, { color: colors.foreground }]}>{displayDate(item.date)}</Text>
                 <Text style={[styles.count, { color: colors.mutedForeground }]}>{item.count} payment(s)</Text>
               </View>
               <Text style={[styles.amount, { color: colors.paid }]}>{formatCurrency(item.amount)}</Text>
             </View>
           )}
-          ListEmptyComponent={<EmptyState icon="bar-chart-2" title="No data" subtitle="No collection data available" />}
+          ListEmptyComponent={<EmptyState icon="bar-chart-2" title="No data" subtitle="No collection data in this period" />}
           contentContainerStyle={{ paddingBottom: insets.bottom + (isWeb ? 34 : 20) }}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={preset === "year" && monthly && monthly.length ? (
+            <View style={[styles.yearBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.yearTitle, { color: colors.foreground }]}>Monthly breakdown</Text>
+              {monthly.map(m => (
+                <View key={`${m.year}-${m.month}`} style={styles.monthRow}>
+                  <Text style={{ color: colors.mutedForeground }}>{m.label} {m.year}</Text>
+                  <Text style={{ color: colors.paid, fontFamily: "Inter_600SemiBold" }}>{formatCurrency(m.amount)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         />
       )}
     </View>
@@ -80,10 +154,20 @@ export default function CollectionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  tabBar: { flexDirection: "row", margin: 16, borderRadius: 10, padding: 4, borderWidth: 1 },
+  filters: { padding: 16, gap: 10 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  customRow: { flexDirection: "row", gap: 8 },
+  input: { flex: 1, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, fontSize: 12 },
+  summary: { marginHorizontal: 16, marginBottom: 8, borderRadius: 14, borderWidth: 1, padding: 16, flexDirection: "row", justifyContent: "space-between" },
+  summaryLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: .7 },
+  summaryAmount: { fontSize: 28, fontFamily: "Inter_700Bold", marginTop: 4 },
+  summaryCount: { fontSize: 24, fontFamily: "Inter_700Bold", marginTop: 4 },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
   card: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, marginVertical: 4, borderRadius: 12, borderWidth: 1, padding: 16 },
   period: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   count: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   amount: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  yearBox: { margin: 16, borderRadius: 12, borderWidth: 1, padding: 16, gap: 10 },
+  yearTitle: { fontFamily: "Inter_700Bold", fontSize: 14, marginBottom: 4 },
+  monthRow: { flexDirection: "row", justifyContent: "space-between" },
 });
