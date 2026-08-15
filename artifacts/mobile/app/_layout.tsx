@@ -43,7 +43,7 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (isLoading) return;
-    const protectedSegments = ["(tabs)", "customer", "invoice", "payment", "report"];
+    const protectedSegments = ["(tabs)", "customer", "invoice", "payment", "report", "backup"];
     const inProtected = protectedSegments.includes(segments[0] as string);
     if (!isAuthenticated && inProtected) {
       router.replace("/login");
@@ -67,6 +67,7 @@ function RootLayoutNav() {
       <Stack.Screen name="report/overdue" options={{ title: "Overdue Report", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/ledger" options={{ title: "Customer Ledger", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/collection" options={{ title: "Collection Report", headerBackTitle: "Back" }} />
+      <Stack.Screen name="backup" options={{ title: "Backup & Restore", headerBackTitle: "Back" }} />
     </Stack>
   );
 }
