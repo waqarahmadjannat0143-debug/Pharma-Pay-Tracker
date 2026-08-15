@@ -39,6 +39,14 @@ const reportItems = [
     path: "/report/collection",
     color: "#059669",
   },
+  {
+    title: "Backup & Restore",
+    subtitle: "Keep a full copy of your MedPay data",
+    description: "Create a portable backup file containing stores, invoices, payments and allocations. Share it to Drive, email or another safe place and restore it when needed.",
+    icon: "shield" as const,
+    path: "/backup",
+    color: "#7C3AED",
+  },
 ];
 
 export default function ReportsScreen() {
@@ -60,7 +68,7 @@ export default function ReportsScreen() {
       }]}>
         <View>
           <Text style={[styles.title, { color: colors.foreground }]}>Reports</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Financial analytics & insights</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Financial analytics & data safety</Text>
         </View>
       </View>
 
@@ -75,7 +83,6 @@ export default function ReportsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {isDesktop ? (
-          /* Desktop: 2-column grid */
           <View style={styles.desktopGrid}>
             {reportItems.map((item, i) => (
               <TouchableOpacity
@@ -90,16 +97,15 @@ export default function ReportsScreen() {
                 <Text style={[styles.desktopCardTitle, { color: colors.foreground }]}>{item.title}</Text>
                 <Text style={[styles.desktopCardDesc, { color: colors.mutedForeground }]}>{item.description}</Text>
                 <View style={[styles.desktopCardFooter, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.desktopCardAction, { color: item.color }]}>Open Report</Text>
+                  <Text style={[styles.desktopCardAction, { color: item.color }]}>{item.path === "/backup" ? "Open Backup" : "Open Report"}</Text>
                   <Feather name="arrow-right" size={14} color={item.color} />
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         ) : (
-          /* Mobile: list */
           <>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Financial Reports</Text>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Reports & Data Safety</Text>
             {reportItems.map((item, i) => (
               <TouchableOpacity
                 key={i}
@@ -136,17 +142,8 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1, gap: 3 },
   itemTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   itemSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
-
-  /* Desktop */
   desktopGrid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  desktopCard: {
-    flex: 1,
-    minWidth: 280,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 24,
-    gap: 12,
-  },
+  desktopCard: { flex: 1, minWidth: 280, borderRadius: 16, borderWidth: 1, padding: 24, gap: 12 },
   desktopIconWrap: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   desktopCardTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
   desktopCardDesc: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 },
