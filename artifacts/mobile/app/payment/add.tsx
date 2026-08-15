@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
+import { formatDateDDMMYY, ddmmyyToISO } from "@/lib/dateFormat";
 import {
   useRecordPayment, useGetCustomers, useGetCustomerInvoices,
   getGetPaymentsQueryKey, getGetDashboardStatsQueryKey,
@@ -22,22 +23,7 @@ const MODES: { key: PaymentMode; label: string; icon: keyof typeof Feather.glyph
 
 function todayDisplay() {
   const d = new Date();
-  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-}
-
-function displayDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return y && m && d ? `${d}-${m}-${y}` : iso;
-}
-
-function toIsoDate(display: string) {
-  const match = display.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-  if (!match) return null;
-  const [, d, m, y] = match;
-  const day = Number(d), month = Number(m), year = Number(y);
-  const dt = new Date(year, month - 1, day);
-  if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return null;
-  return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
 }
 
 function money(n: number) {
@@ -70,9 +56,7 @@ export default function AddPaymentScreen() {
   );
 
   const selectedTotal = useMemo(
-    () => pendingInvoices
-      .filter(inv => selectedInvoiceIds.includes(inv.id))
-      .reduce((sum, inv) => sum + Number(inv.outstandingBalance || 0), 0),
+    () => pendingInvoices.filter(inv => selectedInvoiceIds.includes(inv.id)).reduce((sum, inv) => sum + Number(inv.outstandingBalance || 0), 0),
     [pendingInvoices, selectedInvoiceIds],
   );
 
@@ -85,63 +69,32 @@ export default function AddPaymentScreen() {
   };
 
   const toggleInvoice = (invoiceId: number) => {
-    const next = selectedInvoiceIds.includes(invoiceId)
-      ? selectedInvoiceIds.filter(id => id !== invoiceId)
-      : [...selectedInvoiceIds, invoiceId];
+    const next = selectedInvoiceIds.includes(invoiceId) ? selectedInvoiceIds.filter(id => id !== invoiceId) : [...selectedInvoiceIds, invoiceId];
     setSelectedInvoiceIds(next);
-
-    const nextTotal = pendingInvoices
-      .filter(inv => next.includes(inv.id))
-      .reduce((sum, inv) => sum + Number(inv.outstandingBalance || 0), 0);
+    const nextTotal = pendingInvoices.filter(inv => next.includes(inv.id)).reduce((sum, inv) => sum + Number(inv.outstandingBalance || 0), 0);
     setAmount(nextTotal > 0 ? nextTotal.toFixed(2) : "");
   };
 
   const handleSave = async () => {
-    const isoDate = toIsoDate(paymentDate);
+    const isoDate = ddmmyyToISO(paymentDate);
     const numericAmount = parseFloat(amount);
-
-    if (!selectedCustomerId) {
-      Alert.alert("Validation", "Please select a medical store");
-      return;
-    }
-    if (selectedInvoiceIds.length === 0) {
-      Alert.alert("Validation", "Please select at least one bill");
-      return;
-    }
-    if (!isoDate) {
-      Alert.alert("Validation", "Enter date in DD-MM-YYYY format");
-      return;
-    }
-    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      Alert.alert("Validation", "Please enter a valid payment amount");
-      return;
-    }
-    if (numericAmount > selectedTotal + 0.001) {
-      Alert.alert("Validation", "Payment cannot exceed selected bills outstanding");
-      return;
-    }
+    if (!selectedCustomerId) return Alert.alert("Validation", "Please select a medical store");
+    if (selectedInvoiceIds.length === 0) return Alert.alert("Validation", "Please select at least one bill");
+    if (!isoDate) return Alert.alert("Validation", "Enter date in DD-MM-YY format");
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) return Alert.alert("Validation", "Please enter a valid payment amount");
+    if (numericAmount > selectedTotal + 0.001) return Alert.alert("Validation", "Payment cannot exceed selected bills outstanding");
 
     try {
       const result = await mutateAsync({ data: {
-        customerId: parseInt(selectedCustomerId),
-        paymentDate: isoDate,
-        amount: numericAmount,
-        paymentMode,
-        notes: notes.trim() || undefined,
-        invoiceIds: selectedInvoiceIds,
+        customerId: parseInt(selectedCustomerId), paymentDate: isoDate, amount: numericAmount,
+        paymentMode, notes: notes.trim() || undefined, invoiceIds: selectedInvoiceIds,
       } as any });
-
       queryClient.invalidateQueries({ queryKey: getGetPaymentsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetCustomersQueryKey() });
-
       const allocated = result.allocations?.length || 0;
-      Alert.alert(
-        "Payment Recorded",
-        `${money(numericAmount)} paid successfully.\n${allocated} bill(s) updated.`,
-        [{ text: "OK", onPress: () => router.back() }],
-      );
+      Alert.alert("Payment Recorded", `${money(numericAmount)} paid successfully.\n${allocated} bill(s) updated.`, [{ text: "OK", onPress: () => router.back() }]);
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Failed to record payment.");
     }
@@ -154,28 +107,17 @@ export default function AddPaymentScreen() {
       <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Medical Store *</Text>
-          <TouchableOpacity
-            style={[styles.selector, { borderColor: colors.border, backgroundColor: colors.card }]}
-            onPress={() => setShowCustomerPicker(!showCustomerPicker)}
-          >
-            <Text style={[styles.selectorText, { color: selectedCustomerName ? colors.foreground : colors.mutedForeground }]}>
-              {selectedCustomerName || "Select medical store"}
-            </Text>
+          <TouchableOpacity style={[styles.selector, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={() => setShowCustomerPicker(!showCustomerPicker)}>
+            <Text style={[styles.selectorText, { color: selectedCustomerName ? colors.foreground : colors.mutedForeground }]}>{selectedCustomerName || "Select medical store"}</Text>
             <Feather name={showCustomerPicker ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
           </TouchableOpacity>
           {showCustomerPicker && (
             <View style={[styles.picker, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled">
                 {(customers ?? []).map(c => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[styles.pickerItem, { borderBottomColor: colors.border }]}
-                    onPress={() => chooseCustomer(c.id, c.name)}
-                  >
+                  <TouchableOpacity key={c.id} style={[styles.pickerItem, { borderBottomColor: colors.border }]} onPress={() => chooseCustomer(c.id, c.name)}>
                     <Text style={[styles.pickerText, { color: colors.foreground }]}>{c.name}</Text>
-                    {c.totalOutstanding > 0 && (
-                      <Text style={[styles.pickerSub, { color: colors.overdue }]}>Dues: {money(c.totalOutstanding)}</Text>
-                    )}
+                    {c.totalOutstanding > 0 && <Text style={[styles.pickerSub, { color: colors.overdue }]}>Dues: {money(c.totalOutstanding)}</Text>}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -187,49 +129,19 @@ export default function AddPaymentScreen() {
           <View style={styles.field}>
             <View style={styles.billsHeader}>
               <Text style={[styles.label, { color: colors.mutedForeground }]}>Select Bills *</Text>
-              {selectedInvoiceIds.length > 0 && (
-                <Text style={[styles.selectedTotal, { color: colors.primary }]}>Selected: {money(selectedTotal)}</Text>
-              )}
+              {selectedInvoiceIds.length > 0 && <Text style={[styles.selectedTotal, { color: colors.primary }]}>Selected: {money(selectedTotal)}</Text>}
             </View>
-
-            {invoicesLoading ? (
-              <View style={styles.billLoader}><ActivityIndicator color={colors.primary} /></View>
-            ) : pendingInvoices.length === 0 ? (
-              <View style={[styles.emptyBills, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <Feather name="check-circle" size={18} color={colors.paid} />
-                <Text style={[styles.emptyBillsText, { color: colors.mutedForeground }]}>No pending bills for this store</Text>
-              </View>
+            {invoicesLoading ? <View style={styles.billLoader}><ActivityIndicator color={colors.primary} /></View> : pendingInvoices.length === 0 ? (
+              <View style={[styles.emptyBills, { borderColor: colors.border, backgroundColor: colors.card }]}><Feather name="check-circle" size={18} color={colors.paid} /><Text style={[styles.emptyBillsText, { color: colors.mutedForeground }]}>No pending bills for this store</Text></View>
             ) : (
               <View style={[styles.billList, { borderColor: colors.border, backgroundColor: colors.card }]}>
                 {pendingInvoices.map((inv, index) => {
                   const selected = selectedInvoiceIds.includes(inv.id);
                   return (
-                    <TouchableOpacity
-                      key={inv.id}
-                      style={[
-                        styles.billRow,
-                        index < pendingInvoices.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
-                        selected && { backgroundColor: colors.primary + "0D" },
-                      ]}
-                      onPress={() => toggleInvoice(inv.id)}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[
-                        styles.checkbox,
-                        { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : "transparent" },
-                      ]}>
-                        {selected && <Feather name="check" size={14} color="#fff" />}
-                      </View>
-                      <View style={styles.billInfo}>
-                        <Text style={[styles.billNo, { color: colors.foreground }]}>Bill #{inv.invoiceNumber}</Text>
-                        <Text style={[styles.billMeta, { color: colors.mutedForeground }]}>
-                          {displayDate(inv.invoiceDate)} · Due {displayDate(inv.dueDate)}
-                        </Text>
-                      </View>
-                      <View style={styles.billAmounts}>
-                        <Text style={[styles.billOutstanding, { color: colors.overdue }]}>{money(inv.outstandingBalance)}</Text>
-                        <Text style={[styles.billOriginal, { color: colors.mutedForeground }]}>of {money(inv.billAmount)}</Text>
-                      </View>
+                    <TouchableOpacity key={inv.id} style={[styles.billRow, index < pendingInvoices.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }, selected && { backgroundColor: colors.primary + "0D" }]} onPress={() => toggleInvoice(inv.id)} activeOpacity={0.75}>
+                      <View style={[styles.checkbox, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : "transparent" }]}>{selected && <Feather name="check" size={14} color="#fff" />}</View>
+                      <View style={styles.billInfo}><Text style={[styles.billNo, { color: colors.foreground }]}>Bill #{inv.invoiceNumber}</Text><Text style={[styles.billMeta, { color: colors.mutedForeground }]}>{formatDateDDMMYY(inv.invoiceDate)} · Due {formatDateDDMMYY(inv.dueDate)}</Text></View>
+                      <View style={styles.billAmounts}><Text style={[styles.billOutstanding, { color: colors.overdue }]}>{money(inv.outstandingBalance)}</Text><Text style={[styles.billOriginal, { color: colors.mutedForeground }]}>of {money(inv.billAmount)}</Text></View>
                     </TouchableOpacity>
                   );
                 })}
@@ -240,107 +152,28 @@ export default function AddPaymentScreen() {
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Payment Date *</Text>
-          <TextInput
-            value={paymentDate}
-            onChangeText={setPaymentDate}
-            placeholder="DD-MM-YYYY"
-            placeholderTextColor={colors.mutedForeground}
-            keyboardType="numbers-and-punctuation"
-            style={inputStyle}
-          />
+          <TextInput value={paymentDate} onChangeText={setPaymentDate} placeholder="DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="numbers-and-punctuation" style={inputStyle} />
         </View>
-
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Amount (₹) *</Text>
           <TextInput value={amount} onChangeText={setAmount} placeholder="0.00" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" style={inputStyle} />
-          {selectedInvoiceIds.length > 0 && (
-            <Text style={[styles.amountHint, { color: colors.mutedForeground }]}>You can enter a lower amount for partial payment.</Text>
-          )}
+          {selectedInvoiceIds.length > 0 && <Text style={[styles.amountHint, { color: colors.mutedForeground }]}>You can enter a lower amount for partial payment.</Text>}
         </View>
-
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Payment Mode *</Text>
-          <View style={styles.modesGrid}>
-            {MODES.map(m => {
-              const active = paymentMode === m.key;
-              return (
-                <TouchableOpacity
-                  key={m.key}
-                  style={[styles.modeBtn, {
-                    borderColor: active ? colors.primary : colors.border,
-                    backgroundColor: active ? colors.primary + "15" : colors.card,
-                  }]}
-                  onPress={() => setPaymentMode(m.key)}
-                >
-                  <Feather name={m.icon} size={18} color={active ? colors.primary : colors.mutedForeground} />
-                  <Text style={[styles.modeBtnText, { color: active ? colors.primary : colors.mutedForeground }]}>{m.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <View style={styles.modesGrid}>{MODES.map(m => { const active = paymentMode === m.key; return <TouchableOpacity key={m.key} style={[styles.modeBtn, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary + "15" : colors.card }]} onPress={() => setPaymentMode(m.key)}><Feather name={m.icon} size={18} color={active ? colors.primary : colors.mutedForeground} /><Text style={[styles.modeBtnText, { color: active ? colors.primary : colors.mutedForeground }]}>{m.label}</Text></TouchableOpacity>; })}</View>
         </View>
-
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Notes (Optional)</Text>
-          <TextInput
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="e.g. Cheque #12345"
-            placeholderTextColor={colors.mutedForeground}
-            style={[inputStyle, styles.multiline]}
-            multiline numberOfLines={3}
-          />
+          <TextInput value={notes} onChangeText={setNotes} placeholder="e.g. Cheque #12345" placeholderTextColor={colors.mutedForeground} style={[inputStyle, styles.multiline]} multiline numberOfLines={3} />
         </View>
-
-        <View style={[styles.autoNote, { backgroundColor: colors.accent, borderColor: colors.accentForeground + "30" }]}>
-          <Feather name="info" size={14} color={colors.accentForeground} />
-          <Text style={[styles.autoNoteText, { color: colors.accentForeground }]}>Only the bills you select above will be adjusted.</Text>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: colors.paid }, isPending && { opacity: 0.7 }]}
-          onPress={handleSave} disabled={isPending} activeOpacity={0.8}
-        >
-          {isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Pay Selected Bills</Text>}
-        </TouchableOpacity>
+        <View style={[styles.autoNote, { backgroundColor: colors.accent, borderColor: colors.accentForeground + "30" }]}><Feather name="info" size={14} color={colors.accentForeground} /><Text style={[styles.autoNoteText, { color: colors.accentForeground }]}>Only the bills you select above will be adjusted.</Text></View>
+        <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.paid }, isPending && { opacity: 0.7 }]} onPress={handleSave} disabled={isPending} activeOpacity={0.8}>{isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Pay Selected Bills</Text>}</TouchableOpacity>
       </KeyboardAwareScrollViewCompat>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: 20, gap: 16 },
-  field: { gap: 6 },
-  label: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, fontFamily: "Inter_400Regular" },
-  multiline: { height: 80, textAlignVertical: "top" },
-  selector: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 },
-  selectorText: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  picker: { borderWidth: 1, borderRadius: 10, marginTop: 4, overflow: "hidden" },
-  pickerItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, gap: 2 },
-  pickerText: { fontSize: 14, fontFamily: "Inter_400Regular" },
-  pickerSub: { fontSize: 11, fontFamily: "Inter_500Medium" },
-  billsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  selectedTotal: { fontSize: 12, fontFamily: "Inter_700Bold" },
-  billLoader: { paddingVertical: 18, alignItems: "center" },
-  emptyBills: { borderWidth: 1, borderRadius: 10, padding: 14, flexDirection: "row", gap: 8, alignItems: "center" },
-  emptyBillsText: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  billList: { borderWidth: 1, borderRadius: 12, overflow: "hidden" },
-  billRow: { flexDirection: "row", alignItems: "center", padding: 12, gap: 10 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
-  billInfo: { flex: 1, gap: 2 },
-  billNo: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  billMeta: { fontSize: 10, fontFamily: "Inter_400Regular" },
-  billAmounts: { alignItems: "flex-end", gap: 1 },
-  billOutstanding: { fontSize: 13, fontFamily: "Inter_700Bold" },
-  billOriginal: { fontSize: 9, fontFamily: "Inter_400Regular" },
-  amountHint: { fontSize: 10, fontFamily: "Inter_400Regular" },
-  modesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  modeBtn: { flex: 1, minWidth: "45%", flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1 },
-  modeBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  autoNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", padding: 12, borderRadius: 10, borderWidth: 1 },
-  autoNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
-  saveBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 },
-  saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  container: { flex: 1 }, content: { padding: 20, gap: 16 }, field: { gap: 6 }, label: { fontSize: 12, fontFamily: "Inter_500Medium" }, input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, fontFamily: "Inter_400Regular" }, multiline: { height: 80, textAlignVertical: "top" }, selector: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 }, selectorText: { fontSize: 14, fontFamily: "Inter_400Regular" }, picker: { borderWidth: 1, borderRadius: 10, marginTop: 4, overflow: "hidden" }, pickerItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, gap: 2 }, pickerText: { fontSize: 14, fontFamily: "Inter_400Regular" }, pickerSub: { fontSize: 11, fontFamily: "Inter_500Medium" }, billsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, selectedTotal: { fontSize: 12, fontFamily: "Inter_700Bold" }, billLoader: { paddingVertical: 18, alignItems: "center" }, emptyBills: { borderWidth: 1, borderRadius: 10, padding: 14, flexDirection: "row", gap: 8, alignItems: "center" }, emptyBillsText: { fontSize: 12, fontFamily: "Inter_400Regular" }, billList: { borderWidth: 1, borderRadius: 12, overflow: "hidden" }, billRow: { flexDirection: "row", alignItems: "center", padding: 12, gap: 10 }, checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" }, billInfo: { flex: 1, gap: 2 }, billNo: { fontSize: 13, fontFamily: "Inter_600SemiBold" }, billMeta: { fontSize: 10, fontFamily: "Inter_400Regular" }, billAmounts: { alignItems: "flex-end", gap: 1 }, billOutstanding: { fontSize: 13, fontFamily: "Inter_700Bold" }, billOriginal: { fontSize: 9, fontFamily: "Inter_400Regular" }, amountHint: { fontSize: 10, fontFamily: "Inter_400Regular" }, modesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, modeBtn: { flex: 1, minWidth: "45%", flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1 }, modeBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" }, autoNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", padding: 12, borderRadius: 10, borderWidth: 1 }, autoNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }, saveBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 }, saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
