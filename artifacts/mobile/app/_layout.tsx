@@ -19,7 +19,8 @@ import { getToken } from "@/lib/apiToken";
 
 SplashScreen.preventAutoHideAsync();
 
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+const apiDomain = process.env.EXPO_PUBLIC_DOMAIN || "pharma-pay-tracker.onrender.com";
+setBaseUrl(`https://${apiDomain}`);
 setAuthTokenGetter(getToken);
 
 const queryClient = new QueryClient();
