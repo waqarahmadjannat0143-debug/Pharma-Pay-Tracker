@@ -56,39 +56,75 @@ router.get("/", async (req: AuthRequest, res) => {
 
 router.post("/", async (req: AuthRequest, res) => {
   try {
-    const { customerId, paymentDate, amount, paymentMode, notes } = req.body;
-    const [payment] = await db.insert(paymentsTable).values({
-      customerId,
-      paymentDate,
-      amount: String(amount),
-      paymentMode,
-      notes: notes || null,
-    }).returning();
+    const { customerId, paymentDate, amount, paymentMode, notes, invoiceIds } = req.body;
+    const numericAmount = Number(amount);
 
-    const pendingInvoices = await db
+    if (!customerId || !paymentDate || !Number.isFinite(numericAmount) || numericAmount <= 0 || !paymentMode) {
+      res.status(400).json({ error: "Invalid payment data" });
+      return;
+    }
+
+    let pendingInvoices = await db
       .select()
       .from(invoicesTable)
       .where(
         and(
           eq(invoicesTable.customerId, customerId),
           inArray(invoicesTable.status, ["pending", "partial", "overdue"]),
-          gt(invoicesTable.outstandingBalance, "0")
+          gt(invoicesTable.outstandingBalance, "0"),
+          Array.isArray(invoiceIds) && invoiceIds.length > 0
+            ? inArray(invoicesTable.id, invoiceIds.map((id: unknown) => Number(id)))
+            : undefined,
         )
       )
       .orderBy(asc(invoicesTable.invoiceDate));
 
-    let remaining = parseFloat(amount);
+    if (Array.isArray(invoiceIds) && invoiceIds.length > 0) {
+      const requestedIds = invoiceIds.map((id: unknown) => Number(id));
+      const foundIds = new Set(pendingInvoices.map(i => i.id));
+      if (requestedIds.some((id: number) => !foundIds.has(id))) {
+        res.status(400).json({ error: "One or more selected invoices are invalid or already paid" });
+        return;
+      }
+      pendingInvoices = [...pendingInvoices].sort(
+        (a, b) => requestedIds.indexOf(a.id) - requestedIds.indexOf(b.id),
+      );
+
+      const selectedOutstanding = pendingInvoices.reduce(
+        (sum, invoice) => sum + Number(invoice.outstandingBalance),
+        0,
+      );
+      if (numericAmount > selectedOutstanding + 0.001) {
+        res.status(400).json({ error: "Payment amount cannot exceed selected invoice outstanding" });
+        return;
+      }
+    }
+
+    if (pendingInvoices.length === 0) {
+      res.status(400).json({ error: "No pending invoices available for payment" });
+      return;
+    }
+
+    const [payment] = await db.insert(paymentsTable).values({
+      customerId,
+      paymentDate,
+      amount: numericAmount.toFixed(2),
+      paymentMode,
+      notes: notes || null,
+    }).returning();
+
+    let remaining = numericAmount;
     const allocations: { invoiceId: number; invoiceNumber: string; amount: number }[] = [];
 
     for (const invoice of pendingInvoices) {
       if (remaining <= 0) break;
-      const outstanding = parseFloat(invoice.outstandingBalance as string);
+      const outstanding = Number(invoice.outstandingBalance);
       const allocated = Math.min(remaining, outstanding);
       const newBalance = outstanding - allocated;
-      const newStatus = newBalance <= 0 ? "paid" : "partial";
+      const newStatus = newBalance <= 0.001 ? "paid" : "partial";
 
       await db.update(invoicesTable).set({
-        outstandingBalance: newBalance.toFixed(2),
+        outstandingBalance: Math.max(newBalance, 0).toFixed(2),
         status: newStatus,
       }).where(eq(invoicesTable.id, invoice.id));
 
