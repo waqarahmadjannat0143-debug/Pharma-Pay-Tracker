@@ -10,7 +10,7 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "dfff2276-a69e-4609-871f-9841c5a6585d-00-ozluh4zd8yyj.sisko.replit.dev"
+        "EXPO_PUBLIC_DOMAIN": "pharma-pay-tracker.onrender.com"
       }
     },
     "production": {
@@ -18,7 +18,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "dfff2276-a69e-4609-871f-9841c5a6585d-00-ozluh4zd8yyj.sisko.replit.dev"
+        "EXPO_PUBLIC_DOMAIN": "pharma-pay-tracker.onrender.com"
       }
     }
   },
