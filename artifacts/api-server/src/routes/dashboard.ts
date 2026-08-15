@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, customersTable, invoicesTable, paymentsTable } from "@workspace/db";
-import { eq, and, gte, lte, lt, sql, count } from "drizzle-orm";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/authMiddleware";
 
 const router = Router();
@@ -8,46 +8,26 @@ router.use(requireAuth as any);
 
 router.get("/stats", async (req: AuthRequest, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
-    const inThreeDays = new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0];
-    const monthStart = today.slice(0, 7) + "-01";
+    const rows = await db.execute(sql`
+      SELECT
+        COALESCE((SELECT SUM(outstanding_balance::numeric) FROM invoices WHERE outstanding_balance::numeric > 0), 0) AS "totalOutstanding",
+        COALESCE((SELECT SUM(amount::numeric) FROM payments), 0) AS "totalPaid",
+        COALESCE((SELECT SUM(amount::numeric) FROM payments WHERE payment_date::date = CURRENT_DATE), 0) AS "todayCollection",
+        COALESCE((SELECT SUM(amount::numeric) FROM payments WHERE payment_date::date >= DATE_TRUNC('month', CURRENT_DATE)::date AND payment_date::date <= CURRENT_DATE), 0) AS "thisMonthCollection",
+        (SELECT COUNT(*) FROM customers) AS "totalCustomers",
+        (SELECT COUNT(*) FROM invoices WHERE status = 'overdue' AND outstanding_balance::numeric > 0) AS "overdueCount",
+        (SELECT COUNT(*) FROM invoices WHERE due_date::date >= CURRENT_DATE AND due_date::date <= CURRENT_DATE + INTERVAL '3 days' AND outstanding_balance::numeric > 0) AS "dueIn3DaysCount"
+    `);
 
-    const [outRow] = await db.select({
-      totalOutstanding: sql<number>`COALESCE(SUM(${invoicesTable.outstandingBalance}::numeric), 0)`,
-    }).from(invoicesTable).where(sql`${invoicesTable.outstandingBalance}::numeric > 0`);
-
-    const [paidRow] = await db.select({
-      totalPaid: sql<number>`COALESCE(SUM(${paymentsTable.amount}::numeric), 0)`,
-    }).from(paymentsTable);
-
-    const [todayRow] = await db.select({
-      todayCollection: sql<number>`COALESCE(SUM(${paymentsTable.amount}::numeric), 0)`,
-    }).from(paymentsTable).where(eq(paymentsTable.paymentDate, today));
-
-    const [monthRow] = await db.select({
-      thisMonthCollection: sql<number>`COALESCE(SUM(${paymentsTable.amount}::numeric), 0)`,
-    }).from(paymentsTable).where(and(gte(paymentsTable.paymentDate, monthStart), lte(paymentsTable.paymentDate, today)));
-
-    const [custRow] = await db.select({ totalCustomers: count() }).from(customersTable);
-
-    const [overdueRow] = await db.select({ overdueCount: count() }).from(invoicesTable)
-      .where(and(eq(invoicesTable.status, "overdue"), sql`${invoicesTable.outstandingBalance}::numeric > 0`));
-
-    const [dueRow] = await db.select({ dueIn3DaysCount: count() }).from(invoicesTable)
-      .where(and(
-        gte(invoicesTable.dueDate, today),
-        lte(invoicesTable.dueDate, inThreeDays),
-        sql`${invoicesTable.outstandingBalance}::numeric > 0`
-      ));
-
+    const r = rows.rows[0] as any;
     res.json({
-      totalOutstanding: Number(outRow.totalOutstanding),
-      totalPaid: Number(paidRow.totalPaid),
-      todayCollection: Number(todayRow.todayCollection),
-      thisMonthCollection: Number(monthRow.thisMonthCollection),
-      totalCustomers: custRow.totalCustomers,
-      overdueCount: overdueRow.overdueCount,
-      dueIn3DaysCount: dueRow.dueIn3DaysCount,
+      totalOutstanding: Number(r.totalOutstanding),
+      totalPaid: Number(r.totalPaid),
+      todayCollection: Number(r.todayCollection),
+      thisMonthCollection: Number(r.thisMonthCollection),
+      totalCustomers: Number(r.totalCustomers),
+      overdueCount: Number(r.overdueCount),
+      dueIn3DaysCount: Number(r.dueIn3DaysCount),
     });
   } catch (err) {
     req.log?.error({ err }, "Failed to get dashboard stats");
