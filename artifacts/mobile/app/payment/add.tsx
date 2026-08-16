@@ -41,11 +41,18 @@ export default function AddPaymentScreen() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(params.customerId || "");
   const [selectedCustomerName, setSelectedCustomerName] = useState(params.customerName || "");
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>([]);
   const [amount, setAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [paymentDate, setPaymentDate] = useState(todayDisplay());
   const [notes, setNotes] = useState("");
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers ?? [];
+    return (customers ?? []).filter(c => c.name.toLowerCase().includes(q));
+  }, [customers, customerSearch]);
 
   const customerIdNumber = selectedCustomerId ? parseInt(selectedCustomerId) : 0;
   const { data: invoices, isLoading: invoicesLoading } = useGetCustomerInvoices(customerIdNumber);
@@ -65,6 +72,7 @@ export default function AddPaymentScreen() {
     setSelectedCustomerName(name);
     setSelectedInvoiceIds([]);
     setAmount("");
+    setCustomerSearch("");
     setShowCustomerPicker(false);
   };
 
@@ -104,17 +112,31 @@ export default function AddPaymentScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Medical Store *</Text>
-          <TouchableOpacity style={[styles.selector, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={() => setShowCustomerPicker(!showCustomerPicker)}>
+          <TouchableOpacity style={[styles.selector, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={() => setShowCustomerPicker(v => !v)}>
             <Text style={[styles.selectorText, { color: selectedCustomerName ? colors.foreground : colors.mutedForeground }]}>{selectedCustomerName || "Select medical store"}</Text>
             <Feather name={showCustomerPicker ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
           </TouchableOpacity>
           {showCustomerPicker && (
             <View style={[styles.picker, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled">
-                {(customers ?? []).map(c => (
+              <View style={[styles.searchWrap, { borderBottomColor: colors.border }]}>
+                <Feather name="search" size={16} color={colors.mutedForeground} />
+                <TextInput
+                  value={customerSearch}
+                  onChangeText={setCustomerSearch}
+                  placeholder="Search agency / store"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[styles.searchInput, { color: colors.foreground }]}
+                  autoCorrect={false}
+                />
+                {!!customerSearch && <TouchableOpacity onPress={() => setCustomerSearch("")}><Feather name="x" size={16} color={colors.mutedForeground} /></TouchableOpacity>}
+              </View>
+              <ScrollView style={styles.customerList} contentContainerStyle={styles.customerListContent} keyboardShouldPersistTaps="handled" nestedScrollEnabled showsVerticalScrollIndicator>
+                {filteredCustomers.length === 0 ? (
+                  <Text style={[styles.noResults, { color: colors.mutedForeground }]}>No store found</Text>
+                ) : filteredCustomers.map(c => (
                   <TouchableOpacity key={c.id} style={[styles.pickerItem, { borderBottomColor: colors.border }]} onPress={() => chooseCustomer(c.id, c.name)}>
                     <Text style={[styles.pickerText, { color: colors.foreground }]}>{c.name}</Text>
                     {c.totalOutstanding > 0 && <Text style={[styles.pickerSub, { color: colors.overdue }]}>Dues: {money(c.totalOutstanding)}</Text>}
@@ -175,5 +197,5 @@ export default function AddPaymentScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 }, content: { padding: 20, gap: 16 }, field: { gap: 6 }, label: { fontSize: 12, fontFamily: "Inter_500Medium" }, input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, fontFamily: "Inter_400Regular" }, multiline: { height: 80, textAlignVertical: "top" }, selector: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 }, selectorText: { fontSize: 14, fontFamily: "Inter_400Regular" }, picker: { borderWidth: 1, borderRadius: 10, marginTop: 4, overflow: "hidden" }, pickerItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, gap: 2 }, pickerText: { fontSize: 14, fontFamily: "Inter_400Regular" }, pickerSub: { fontSize: 11, fontFamily: "Inter_500Medium" }, billsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, selectedTotal: { fontSize: 12, fontFamily: "Inter_700Bold" }, billLoader: { paddingVertical: 18, alignItems: "center" }, emptyBills: { borderWidth: 1, borderRadius: 10, padding: 14, flexDirection: "row", gap: 8, alignItems: "center" }, emptyBillsText: { fontSize: 12, fontFamily: "Inter_400Regular" }, billList: { borderWidth: 1, borderRadius: 12, overflow: "hidden" }, billRow: { flexDirection: "row", alignItems: "center", padding: 12, gap: 10 }, checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" }, billInfo: { flex: 1, gap: 2 }, billNo: { fontSize: 13, fontFamily: "Inter_600SemiBold" }, billMeta: { fontSize: 10, fontFamily: "Inter_400Regular" }, billAmounts: { alignItems: "flex-end", gap: 1 }, billOutstanding: { fontSize: 13, fontFamily: "Inter_700Bold" }, billOriginal: { fontSize: 9, fontFamily: "Inter_400Regular" }, amountHint: { fontSize: 10, fontFamily: "Inter_400Regular" }, modesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, modeBtn: { flex: 1, minWidth: "45%", flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1 }, modeBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" }, autoNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", padding: 12, borderRadius: 10, borderWidth: 1 }, autoNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }, saveBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 }, saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  container: { flex: 1 }, content: { padding: 20, gap: 16, paddingBottom: 40 }, field: { gap: 6 }, label: { fontSize: 12, fontFamily: "Inter_500Medium" }, input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, fontFamily: "Inter_400Regular" }, multiline: { height: 80, textAlignVertical: "top" }, selector: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 }, selectorText: { fontSize: 14, fontFamily: "Inter_400Regular" }, picker: { borderWidth: 1, borderRadius: 10, marginTop: 4, overflow: "hidden" }, searchWrap: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderBottomWidth: 1 }, searchInput: { flex: 1, paddingVertical: 10, fontSize: 14 }, customerList: { maxHeight: 260 }, customerListContent: { flexGrow: 1 }, pickerItem: { paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, gap: 2 }, pickerText: { fontSize: 14, fontFamily: "Inter_400Regular" }, pickerSub: { fontSize: 11, fontFamily: "Inter_500Medium" }, noResults: { padding: 16, textAlign: "center", fontSize: 12 }, billsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, selectedTotal: { fontSize: 12, fontFamily: "Inter_700Bold" }, billLoader: { paddingVertical: 18, alignItems: "center" }, emptyBills: { borderWidth: 1, borderRadius: 10, padding: 14, flexDirection: "row", gap: 8, alignItems: "center" }, emptyBillsText: { fontSize: 12, fontFamily: "Inter_400Regular" }, billList: { borderWidth: 1, borderRadius: 12, overflow: "hidden" }, billRow: { flexDirection: "row", alignItems: "center", padding: 12, gap: 10 }, checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" }, billInfo: { flex: 1, gap: 2 }, billNo: { fontSize: 13, fontFamily: "Inter_600SemiBold" }, billMeta: { fontSize: 10, fontFamily: "Inter_400Regular" }, billAmounts: { alignItems: "flex-end", gap: 1 }, billOutstanding: { fontSize: 13, fontFamily: "Inter_700Bold" }, billOriginal: { fontSize: 9, fontFamily: "Inter_400Regular" }, amountHint: { fontSize: 10, fontFamily: "Inter_400Regular" }, modesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, modeBtn: { flex: 1, minWidth: "45%", flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1 }, modeBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" }, autoNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", padding: 12, borderRadius: 10, borderWidth: 1 }, autoNoteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 }, saveBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 }, saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
