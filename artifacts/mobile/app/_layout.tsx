@@ -65,6 +65,7 @@ function RootLayoutNav() {
       <Stack.Screen name="payment/add" options={{ title: "Record Payment", headerBackTitle: "Back" }} />
       <Stack.Screen name="payment/edit/[id]" options={{ title: "Edit Payment", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/outstanding" options={{ title: "Outstanding Report", headerBackTitle: "Back" }} />
+      <Stack.Screen name="report/aging" options={{ title: "Bill Aging", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/overdue" options={{ title: "Overdue Report", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/ledger" options={{ title: "Customer Ledger", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/collection" options={{ title: "Collection Report", headerBackTitle: "Back" }} />
