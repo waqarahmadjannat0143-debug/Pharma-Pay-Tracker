@@ -63,6 +63,7 @@ function RootLayoutNav() {
       <Stack.Screen name="invoice/add" options={{ title: "Add Invoice", headerBackTitle: "Back" }} />
       <Stack.Screen name="invoice/[id]" options={{ title: "Invoice Details", headerBackTitle: "Back" }} />
       <Stack.Screen name="payment/add" options={{ title: "Record Payment", headerBackTitle: "Back" }} />
+      <Stack.Screen name="payment/edit/[id]" options={{ title: "Edit Payment", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/outstanding" options={{ title: "Outstanding Report", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/overdue" options={{ title: "Overdue Report", headerBackTitle: "Back" }} />
       <Stack.Screen name="report/ledger" options={{ title: "Customer Ledger", headerBackTitle: "Back" }} />
