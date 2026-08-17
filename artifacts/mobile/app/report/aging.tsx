@@ -2,15 +2,17 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
-import { getBaseUrl } from "@workspace/api-client-react";
 import { getToken } from "@/lib/apiToken";
 import { formatDateDDMMYY } from "@/lib/dateFormat";
 
 const fmt=(n:number)=>"₹"+n.toLocaleString("en-IN",{maximumFractionDigits:0});
 const keys=["current","d1_30","d31_60","d61_90","d90plus"];
+const apiDomain=process.env.EXPO_PUBLIC_DOMAIN||"pharma-pay-tracker.onrender.com";
+const apiBase=`https://${apiDomain}`;
+
 export default function Aging(){
  const colors=useColors(); const [selected,setSelected]=useState("all");
- const {data,isLoading,isError,error,refetch,isFetching}=useQuery({queryKey:["aging-report"],queryFn:async()=>{const t=getToken();const r=await fetch(`${getBaseUrl()}/api/reports/aging`,{headers:{Authorization:`Bearer ${t}`}});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||"Failed to load bill aging");return body;}});
+ const {data,isLoading,isError,error,refetch,isFetching}=useQuery({queryKey:["aging-report"],queryFn:async()=>{const t=getToken();if(!t)throw new Error("Login token missing. Please login again.");const r=await fetch(`${apiBase}/api/reports/aging`,{headers:{Authorization:`Bearer ${t}`}});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||`Server error ${r.status}`);return body;}});
  const invoices=(data?.invoices??[]).filter((i:any)=>selected==="all"||i.bucket===selected);
  if(isLoading)return <View style={[s.center,{backgroundColor:colors.background}]}><ActivityIndicator color={colors.primary}/></View>;
  if(isError)return <View style={[s.center,{backgroundColor:colors.background,padding:24}]}><Text style={[s.errorTitle,{color:colors.foreground}]}>Bill Aging load nahi hua</Text><Text style={[s.errorText,{color:colors.mutedForeground}]}>{(error as Error)?.message||"Server error"}</Text><TouchableOpacity onPress={()=>refetch()} style={[s.retry,{backgroundColor:colors.primary}]}><Text style={s.retryText}>{isFetching?"Retrying...":"Retry"}</Text></TouchableOpacity></View>;
