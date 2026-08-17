@@ -31,22 +31,41 @@ router.get("/overdue", async (req: AuthRequest, res) => {
 
 router.get("/aging", async (req: AuthRequest, res) => {
   try {
-    const rows = await db.execute(sql`
-      SELECT i.id AS "invoiceId", i.invoice_number AS "invoiceNumber", i.due_date AS "dueDate",
-             i.outstanding_balance::numeric AS "outstandingBalance", c.id AS "customerId", c.name AS "customerName",
-             (CURRENT_DATE - i.due_date::date) AS "daysPastDue"
-      FROM invoices i JOIN customers c ON c.id=i.customer_id
-      WHERE i.outstanding_balance::numeric > 0
-      ORDER BY i.due_date::date ASC`);
-    const buckets: any = { current: { label: "Not Due", amount: 0, count: 0 }, d1_30: { label: "1-30 Days", amount: 0, count: 0 }, d31_60: { label: "31-60 Days", amount: 0, count: 0 }, d61_90: { label: "61-90 Days", amount: 0, count: 0 }, d90plus: { label: "90+ Days", amount: 0, count: 0 } };
-    const invoices = (rows.rows as any[]).map(r => {
-      const days = Number(r.daysPastDue); const amount = Number(r.outstandingBalance);
+    const rows = await db.select({
+      invoiceId: invoicesTable.id,
+      invoiceNumber: invoicesTable.invoiceNumber,
+      dueDate: invoicesTable.dueDate,
+      outstandingBalance: invoicesTable.outstandingBalance,
+      customerId: customersTable.id,
+      customerName: customersTable.name,
+      daysPastDue: sql<number>`(CURRENT_DATE - ${invoicesTable.dueDate}::date)`,
+    }).from(invoicesTable)
+      .innerJoin(customersTable, eq(invoicesTable.customerId, customersTable.id))
+      .where(sql`${invoicesTable.outstandingBalance}::numeric > 0`)
+      .orderBy(sql`${invoicesTable.dueDate}::date ASC`);
+
+    const buckets: any = {
+      current: { label: "Not Due", amount: 0, count: 0 },
+      d1_30: { label: "1-30 Days", amount: 0, count: 0 },
+      d31_60: { label: "31-60 Days", amount: 0, count: 0 },
+      d61_90: { label: "61-90 Days", amount: 0, count: 0 },
+      d90plus: { label: "90+ Days", amount: 0, count: 0 },
+    };
+
+    const invoices = rows.map((r) => {
+      const days = Number(r.daysPastDue);
+      const amount = Number(r.outstandingBalance);
       const key = days <= 0 ? "current" : days <= 30 ? "d1_30" : days <= 60 ? "d31_60" : days <= 90 ? "d61_90" : "d90plus";
-      buckets[key].amount += amount; buckets[key].count += 1;
+      buckets[key].amount += amount;
+      buckets[key].count += 1;
       return { ...r, outstandingBalance: amount, daysPastDue: days, bucket: key };
     });
+
     res.json({ buckets, invoices });
-  } catch (err) { req.log?.error({ err }, "Failed aging"); res.status(500).json({ error: "Failed to fetch aging report" }); }
+  } catch (err) {
+    req.log?.error({ err }, "Failed aging");
+    res.status(500).json({ error: "Failed to fetch aging report" });
+  }
 });
 
 router.get("/invoice-payments/:invoiceId", async (req: AuthRequest, res) => {
