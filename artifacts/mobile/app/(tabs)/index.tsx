@@ -4,189 +4,30 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
-import { useGetDashboardStats, useGetMonthlyCollections, useGetDateWiseCollection } from "@workspace/api-client-react";
+import { getToken } from "@/lib/apiToken";
 
-function fmt(n: number) {
-  return "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-}
-function short(n: number) {
-  if (n >= 100000) return "₹" + (n / 100000).toFixed(1) + "L";
-  if (n >= 1000) return "₹" + (n / 1000).toFixed(1) + "K";
-  return fmt(n);
-}
-function iso(d: Date) { return d.toISOString().split("T")[0]; }
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-}
+const API_BASE=`https://${process.env.EXPO_PUBLIC_DOMAIN||"pharma-pay-tracker.onrender.com"}`;
+function fmt(n:number){return "₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:0})}
+function short(n:number){if(n>=100000)return "₹"+(n/100000).toFixed(1)+"L";if(n>=1000)return "₹"+(n/1000).toFixed(1)+"K";return fmt(n)}
+function iso(d:Date){return d.toISOString().split("T")[0]}
+function greeting(){const h=new Date().getHours();return h<12?"Good morning":h<17?"Good afternoon":"Good evening"}
+type Period="today"|"week"|"month"|"year";
 
-type Period = "today" | "week" | "month" | "year";
+export default function DashboardScreen(){
+ const colors=useColors(),router=useRouter(),insets=useSafeAreaInsets();const{username,logout}=useAuth();const isWeb=Platform.OS==="web";const[period,setPeriod]=useState<Period>("month");
+ const range=useMemo(()=>{const now=new Date(),today=iso(now);if(period==="today")return{fromDate:today,toDate:today};if(period==="week"){const d=new Date(now);d.setDate(d.getDate()-6);return{fromDate:iso(d),toDate:today}}if(period==="year")return{fromDate:`${today.slice(0,4)}-01-01`,toDate:today};return{fromDate:`${today.slice(0,7)}-01`,toDate:today}},[period]);
+ const{data,isFetching,refetch}=useQuery({queryKey:["dashboard-overview",range.fromDate,range.toDate],staleTime:120000,gcTime:600000,placeholderData:(prev)=>prev,queryFn:async()=>{const token=getToken();const r=await fetch(`${API_BASE}/api/dashboard/overview?fromDate=${range.fromDate}&toDate=${range.toDate}`,{headers:{Authorization:`Bearer ${token}`}});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||"Dashboard load failed");return body;}});
+ const stats=data?.stats,monthly=data?.monthly??[],periodRows=data?.periodRows??[];const periodCollection=periodRows.reduce((s:number,x:any)=>s+Number(x.amount||0),0),periodPayments=periodRows.reduce((s:number,x:any)=>s+Number(x.count||0),0);
+ const goCollection=(p:string)=>router.push(`/report/collection?period=${p}` as any);const periods:{key:Period;label:string}[]=[{key:"today",label:"Today"},{key:"week",label:"7 Days"},{key:"month",label:"This Month"},{key:"year",label:"This Year"}];
+ return <View style={[styles.container,{backgroundColor:colors.background}]}><ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch}/>} contentContainerStyle={{paddingBottom:insets.bottom+(isWeb?30:90)}}>
+ <LinearGradient colors={["#1565C0","#2196F3"]} style={[styles.hero,{paddingTop:(isWeb?60:insets.top)+14}]}><View style={styles.heroTop}><View><Text style={styles.greeting}>{greeting()}</Text><Text style={styles.user}>{username||"admin"}</Text></View><TouchableOpacity style={styles.logout} onPress={logout}><Feather name="log-out" size={18} color="#fff"/></TouchableOpacity></View><TouchableOpacity style={styles.outstanding} onPress={()=>router.push("/report/outstanding")} activeOpacity={.8}><View style={styles.cardTitleRow}><Text style={styles.outLabel}>TOTAL OUTSTANDING</Text><Feather name="chevron-right" size={20} color="rgba(255,255,255,.8)"/></View><Text style={styles.outValue}>{fmt(stats?.totalOutstanding??0)}</Text><View style={styles.badges}><Text style={styles.badge}>{stats?.totalCustomers??0} Stores</Text><Text style={styles.badge}>{stats?.overdueCount??0} Overdue</Text></View></TouchableOpacity></LinearGradient>
+ <View style={styles.filterWrap}><Text style={[styles.filterTitle,{color:colors.mutedForeground}]}>FILTER DASHBOARD</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>{periods.map(p=>{const active=p.key===period;return <TouchableOpacity key={p.key} onPress={()=>setPeriod(p.key)} style={[styles.filterChip,{backgroundColor:active?colors.primary:colors.card,borderColor:active?colors.primary:colors.border}]}><Text style={{color:active?"#fff":colors.mutedForeground,fontFamily:"Inter_600SemiBold",fontSize:12}}>{p.label}</Text></TouchableOpacity>})}</ScrollView></View>
+ <View style={styles.grid}><TouchableOpacity style={[styles.tile,{backgroundColor:colors.card,borderColor:colors.border}]} onPress={()=>goCollection(period)}><View style={[styles.icon,{backgroundColor:colors.paid+"20"}]}><Feather name="check-circle" size={20} color={colors.paid}/></View><Text style={[styles.value,{color:colors.foreground}]}>{short(periodCollection)}</Text><Text style={[styles.label,{color:colors.mutedForeground}]}>Selected Collection</Text><Text style={[styles.sub,{color:colors.paid}]}>{periodPayments} payment(s) · View details</Text></TouchableOpacity><TouchableOpacity style={[styles.tile,{backgroundColor:colors.card,borderColor:colors.border}]} onPress={()=>goCollection("today")}><View style={[styles.icon,{backgroundColor:colors.primary+"20"}]}><Feather name="sun" size={20} color={colors.primary}/></View><Text style={[styles.value,{color:colors.foreground}]}>{short(stats?.todayCollection??0)}</Text><Text style={[styles.label,{color:colors.mutedForeground}]}>Today's Collection</Text><Text style={[styles.sub,{color:colors.primary}]}>Tap for day-wise details</Text></TouchableOpacity><TouchableOpacity style={[styles.tile,{backgroundColor:colors.card,borderColor:colors.border}]} onPress={()=>goCollection("month")}><View style={[styles.icon,{backgroundColor:"#7C3AED20"}]}><Feather name="calendar" size={20} color="#7C3AED"/></View><Text style={[styles.value,{color:colors.foreground}]}>{short(stats?.thisMonthCollection??0)}</Text><Text style={[styles.label,{color:colors.mutedForeground}]}>This Month</Text><Text style={[styles.sub,{color:"#7C3AED"}]}>Tap for monthly details</Text></TouchableOpacity><TouchableOpacity style={[styles.tile,{backgroundColor:colors.card,borderColor:colors.border}]} onPress={()=>router.push("/report/overdue")}><View style={[styles.icon,{backgroundColor:colors.overdue+"18"}]}><Feather name="alert-triangle" size={20} color={colors.overdue}/></View><Text style={[styles.value,{color:colors.foreground}]}>{stats?.overdueCount??0}</Text><Text style={[styles.label,{color:colors.mutedForeground}]}>Overdue Invoices</Text><Text style={[styles.sub,{color:colors.overdue}]}>Tap to view invoices</Text></TouchableOpacity></View>
+ <TouchableOpacity style={[styles.chart,{backgroundColor:colors.card,borderColor:colors.border}]} onPress={()=>goCollection("year")} activeOpacity={.85}><View style={styles.chartHeader}><Text style={[styles.chartTitle,{color:colors.foreground}]}>Monthly Collections</Text><Text style={[styles.chartSub,{color:colors.primary}]}>View details ›</Text></View><View style={styles.bars}>{monthly.slice(-6).map((m:any,i:number,arr:any[])=>{const max=Math.max(...arr.map(x=>x.amount),1),h=Math.max(8,(m.amount/max)*90);return <View key={`${m.year}-${m.month}`} style={styles.barCol}><Text style={[styles.barVal,{color:colors.mutedForeground}]}>{m.amount?short(m.amount):""}</Text><View style={[styles.bar,{height:h,backgroundColor:colors.primary}]}/><Text style={[styles.barLabel,{color:colors.mutedForeground}]}>{m.label}</Text></View>})}</View></TouchableOpacity>
+ <Text style={[styles.quickTitleLabel,{color:colors.mutedForeground}]}>QUICK ACTIONS</Text><View style={styles.quickRow}><TouchableOpacity style={[styles.quick,{backgroundColor:colors.primary}]} onPress={()=>router.push("/invoice/add")}><Feather name="file-plus" size={20} color="#fff"/><Text style={styles.quickText}>Add Invoice</Text></TouchableOpacity><TouchableOpacity style={[styles.quick,{backgroundColor:colors.paid}]} onPress={()=>router.push("/payment/add")}><Feather name="credit-card" size={20} color="#fff"/><Text style={styles.quickText}>Record Payment</Text></TouchableOpacity></View>
+ </ScrollView></View>}
 
-export default function DashboardScreen() {
-  const colors = useColors();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { username, logout } = useAuth();
-  const isWeb = Platform.OS === "web";
-  const [period, setPeriod] = useState<Period>("month");
-
-  const range = useMemo(() => {
-    const now = new Date();
-    const today = iso(now);
-    if (period === "today") return { fromDate: today, toDate: today };
-    if (period === "week") { const d = new Date(now); d.setDate(d.getDate() - 6); return { fromDate: iso(d), toDate: today }; }
-    if (period === "year") return { fromDate: `${today.slice(0,4)}-01-01`, toDate: today };
-    return { fromDate: `${today.slice(0,7)}-01`, toDate: today };
-  }, [period]);
-
-  const { data: stats, refetch: refetchStats } = useGetDashboardStats();
-  const { data: monthly, refetch: refetchMonthly } = useGetMonthlyCollections();
-  const { data: periodRows, refetch: refetchPeriod } = useGetDateWiseCollection(range);
-  const periodCollection = (periodRows ?? []).reduce((s, x) => s + x.amount, 0);
-  const periodPayments = (periodRows ?? []).reduce((s, x) => s + x.count, 0);
-
-  const refresh = () => { refetchStats(); refetchMonthly(); refetchPeriod(); };
-  const goCollection = (p: string) => router.push(`/report/collection?period=${p}` as any);
-
-  const periods: { key: Period; label: string }[] = [
-    { key: "today", label: "Today" },
-    { key: "week", label: "7 Days" },
-    { key: "month", label: "This Month" },
-    { key: "year", label: "This Year" },
-  ];
-
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} />}
-        contentContainerStyle={{ paddingBottom: insets.bottom + (isWeb ? 30 : 90) }}
-      >
-        <LinearGradient colors={["#1565C0", "#2196F3"]} style={[styles.hero, { paddingTop: (isWeb ? 60 : insets.top) + 14 }]}>
-          <View style={styles.heroTop}>
-            <View>
-              <Text style={styles.greeting}>{greeting()}</Text>
-              <Text style={styles.user}>{username || "admin"}</Text>
-            </View>
-            <TouchableOpacity style={styles.logout} onPress={logout}><Feather name="log-out" size={18} color="#fff" /></TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.outstanding} onPress={() => router.push("/report/outstanding")} activeOpacity={0.8}>
-            <View style={styles.cardTitleRow}>
-              <Text style={styles.outLabel}>TOTAL OUTSTANDING</Text>
-              <Feather name="chevron-right" size={20} color="rgba(255,255,255,.8)" />
-            </View>
-            <Text style={styles.outValue}>{fmt(stats?.totalOutstanding ?? 0)}</Text>
-            <View style={styles.badges}>
-              <Text style={styles.badge}>{stats?.totalCustomers ?? 0} Stores</Text>
-              <Text style={styles.badge}>{stats?.overdueCount ?? 0} Overdue</Text>
-            </View>
-          </TouchableOpacity>
-        </LinearGradient>
-
-        <View style={styles.filterWrap}>
-          <Text style={[styles.filterTitle, { color: colors.mutedForeground }]}>FILTER DASHBOARD</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {periods.map(p => {
-              const active = p.key === period;
-              return (
-                <TouchableOpacity key={p.key} onPress={() => setPeriod(p.key)} style={[styles.filterChip, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]}>
-                  <Text style={{ color: active ? "#fff" : colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{p.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        <View style={styles.grid}>
-          <TouchableOpacity style={[styles.tile, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => goCollection(period)}>
-            <View style={[styles.icon, { backgroundColor: colors.paid + "20" }]}><Feather name="check-circle" size={20} color={colors.paid} /></View>
-            <Text style={[styles.value, { color: colors.foreground }]}>{short(periodCollection)}</Text>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>Selected Collection</Text>
-            <Text style={[styles.sub, { color: colors.paid }]}>{periodPayments} payment(s) · View details</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.tile, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => goCollection("today")}>
-            <View style={[styles.icon, { backgroundColor: colors.primary + "20" }]}><Feather name="sun" size={20} color={colors.primary} /></View>
-            <Text style={[styles.value, { color: colors.foreground }]}>{short(stats?.todayCollection ?? 0)}</Text>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>Today's Collection</Text>
-            <Text style={[styles.sub, { color: colors.primary }]}>Tap for day-wise details</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.tile, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => goCollection("month")}>
-            <View style={[styles.icon, { backgroundColor: "#7C3AED20" }]}><Feather name="calendar" size={20} color="#7C3AED" /></View>
-            <Text style={[styles.value, { color: colors.foreground }]}>{short(stats?.thisMonthCollection ?? 0)}</Text>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>This Month</Text>
-            <Text style={[styles.sub, { color: "#7C3AED" }]}>Tap for monthly details</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.tile, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.push("/report/overdue")}>
-            <View style={[styles.icon, { backgroundColor: colors.overdue + "18" }]}><Feather name="alert-triangle" size={20} color={colors.overdue} /></View>
-            <Text style={[styles.value, { color: colors.foreground }]}>{stats?.overdueCount ?? 0}</Text>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>Overdue Invoices</Text>
-            <Text style={[styles.sub, { color: colors.overdue }]}>Tap to view invoices</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={[styles.chart, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => goCollection("year")} activeOpacity={0.85}>
-          <View style={styles.chartHeader}>
-            <Text style={[styles.chartTitle, { color: colors.foreground }]}>Monthly Collections</Text>
-            <Text style={[styles.chartSub, { color: colors.primary }]}>View details ›</Text>
-          </View>
-          <View style={styles.bars}>
-            {(monthly ?? []).slice(-6).map((m, i, arr) => {
-              const max = Math.max(...arr.map(x => x.amount), 1);
-              const h = Math.max(8, (m.amount / max) * 90);
-              return <View key={`${m.year}-${m.month}`} style={styles.barCol}><Text style={[styles.barVal, { color: colors.mutedForeground }]}>{m.amount ? short(m.amount) : ""}</Text><View style={[styles.bar, { height: h, backgroundColor: colors.primary }]} /><Text style={[styles.barLabel, { color: colors.mutedForeground }]}>{m.label}</Text></View>;
-            })}
-          </View>
-        </TouchableOpacity>
-
-        <Text style={[styles.quickTitleLabel, { color: colors.mutedForeground }]}>QUICK ACTIONS</Text>
-        <View style={styles.quickRow}>
-          <TouchableOpacity style={[styles.quick, { backgroundColor: colors.primary }]} onPress={() => router.push("/invoice/add")}><Feather name="file-plus" size={20} color="#fff" /><Text style={styles.quickText}>Add Invoice</Text></TouchableOpacity>
-          <TouchableOpacity style={[styles.quick, { backgroundColor: colors.paid }]} onPress={() => router.push("/payment/add")}><Feather name="credit-card" size={20} color="#fff" /><Text style={styles.quickText}>Record Payment</Text></TouchableOpacity>
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  hero: { paddingHorizontal: 20, paddingBottom: 28, gap: 20 },
-  heroTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  greeting: { color: "rgba(255,255,255,.75)", fontSize: 13, fontFamily: "Inter_400Regular" },
-  user: { color: "#fff", fontSize: 22, fontFamily: "Inter_700Bold", marginTop: 3 },
-  logout: { width: 42, height: 42, borderRadius: 12, backgroundColor: "rgba(255,255,255,.16)", alignItems: "center", justifyContent: "center" },
-  outstanding: { backgroundColor: "rgba(255,255,255,.15)", borderWidth: 1, borderColor: "rgba(255,255,255,.22)", borderRadius: 18, padding: 20, gap: 10 },
-  cardTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  outLabel: { color: "rgba(255,255,255,.78)", fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: .5 },
-  outValue: { color: "#fff", fontSize: 36, fontFamily: "Inter_700Bold" },
-  badges: { flexDirection: "row", gap: 8 },
-  badge: { color: "#fff", backgroundColor: "rgba(255,255,255,.14)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, fontSize: 11 },
-  filterWrap: { paddingHorizontal: 16, paddingTop: 16, gap: 9 },
-  filterTitle: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1 },
-  filterChip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  grid: { padding: 16, flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  tile: { width: "48%", flexGrow: 1, borderRadius: 16, borderWidth: 1, padding: 15, gap: 8, minHeight: 150 },
-  icon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  value: { fontSize: 24, fontFamily: "Inter_700Bold" },
-  label: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  sub: { fontSize: 10, fontFamily: "Inter_500Medium", marginTop: "auto" },
-  chart: { marginHorizontal: 16, borderRadius: 16, borderWidth: 1, padding: 16 },
-  chartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  chartTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  chartSub: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  bars: { height: 130, flexDirection: "row", alignItems: "flex-end", gap: 7, marginTop: 12 },
-  barCol: { flex: 1, alignItems: "center", justifyContent: "flex-end", height: "100%" },
-  bar: { width: "70%", borderRadius: 5 },
-  barVal: { fontSize: 7, marginBottom: 3 },
-  barLabel: { fontSize: 9, marginTop: 4 },
-  quickTitleLabel: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10, fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1 },
-  quickRow: { flexDirection: "row", paddingHorizontal: 16, gap: 10 },
-  quick: { flex: 1, borderRadius: 14, padding: 16, gap: 8 },
-  quickText: { color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold" },
-});
+const styles=StyleSheet.create({container:{flex:1},hero:{paddingHorizontal:20,paddingBottom:28,gap:20},heroTop:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},greeting:{color:"rgba(255,255,255,.75)",fontSize:13,fontFamily:"Inter_400Regular"},user:{color:"#fff",fontSize:22,fontFamily:"Inter_700Bold",marginTop:3},logout:{width:42,height:42,borderRadius:12,backgroundColor:"rgba(255,255,255,.16)",alignItems:"center",justifyContent:"center"},outstanding:{backgroundColor:"rgba(255,255,255,.15)",borderWidth:1,borderColor:"rgba(255,255,255,.22)",borderRadius:18,padding:20,gap:10},cardTitleRow:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},outLabel:{color:"rgba(255,255,255,.78)",fontFamily:"Inter_600SemiBold",fontSize:12,letterSpacing:.5},outValue:{color:"#fff",fontSize:36,fontFamily:"Inter_700Bold"},badges:{flexDirection:"row",gap:8},badge:{color:"#fff",backgroundColor:"rgba(255,255,255,.14)",paddingHorizontal:10,paddingVertical:5,borderRadius:20,fontSize:11},filterWrap:{paddingHorizontal:16,paddingTop:16,gap:9},filterTitle:{fontSize:10,fontFamily:"Inter_700Bold",letterSpacing:1},filterChip:{borderWidth:1,borderRadius:20,paddingHorizontal:14,paddingVertical:8},grid:{padding:16,flexDirection:"row",flexWrap:"wrap",gap:10},tile:{width:"48%",flexGrow:1,borderRadius:16,borderWidth:1,padding:15,gap:8,minHeight:150},icon:{width:38,height:38,borderRadius:12,alignItems:"center",justifyContent:"center"},value:{fontSize:24,fontFamily:"Inter_700Bold"},label:{fontSize:12,fontFamily:"Inter_500Medium"},sub:{fontSize:10,fontFamily:"Inter_500Medium",marginTop:"auto"},chart:{marginHorizontal:16,borderRadius:16,borderWidth:1,padding:16},chartHeader:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},chartTitle:{fontSize:15,fontFamily:"Inter_700Bold"},chartSub:{fontSize:11,fontFamily:"Inter_600SemiBold"},bars:{height:130,flexDirection:"row",alignItems:"flex-end",gap:7,marginTop:12},barCol:{flex:1,alignItems:"center",justifyContent:"flex-end",height:"100%"},bar:{width:"70%",borderRadius:5},barVal:{fontSize:7,marginBottom:3},barLabel:{fontSize:9,marginTop:4},quickTitleLabel:{paddingHorizontal:16,paddingTop:20,paddingBottom:10,fontSize:10,fontFamily:"Inter_700Bold",letterSpacing:1},quickRow:{flexDirection:"row",paddingHorizontal:16,gap:10},quick:{flex:1,borderRadius:14,padding:16,gap:8},quickText:{color:"#fff",fontSize:13,fontFamily:"Inter_700Bold"}});
