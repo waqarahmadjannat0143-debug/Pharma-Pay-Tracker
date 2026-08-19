@@ -22,11 +22,10 @@ setAuthTokenGetter(getToken);
 let queryClient: QueryClient;
 const mutationCache = new MutationCache({
   onSuccess: async () => {
-    // Any successful add/edit/delete/payment can affect dashboard, stores,
-    // invoices, payments and reports. Mark everything stale and refresh only
-    // the screens that are currently active.
+    // A successful mutation can affect dashboard, stores, invoices,
+    // payments and reports. invalidateQueries already refreshes active
+    // queries, so do not trigger a second duplicate refetch here.
     await queryClient.invalidateQueries();
-    await queryClient.refetchQueries({ type: "active" });
   },
 });
 
@@ -34,8 +33,11 @@ queryClient=new QueryClient({
   mutationCache,
   defaultOptions:{
     queries:{
-      staleTime:0,
-      gcTime:300000,
+      // Keep recently loaded data fresh for 30 seconds. This avoids repeated
+      // network calls while moving between screens, while mutations still
+      // invalidate immediately so newly added/edited data appears at once.
+      staleTime:30000,
+      gcTime:600000,
       retry:1,
       refetchOnMount:true,
       refetchOnWindowFocus:true,
@@ -84,12 +86,11 @@ export default function RootLayout(){
   },[fontsLoaded,fontError]);
 
   useEffect(()=>{
+    // Let TanStack Query handle focus normally. Do not manually invalidate
+    // every query whenever the app becomes active; that caused unnecessary
+    // full-screen reloads and duplicate API traffic.
     const subscription=AppState.addEventListener("change",state=>{
       focusManager.setFocused(state==="active");
-      if(state==="active"){
-        queryClient.invalidateQueries();
-        queryClient.refetchQueries({type:"active"});
-      }
     });
     return()=>subscription.remove();
   },[]);
