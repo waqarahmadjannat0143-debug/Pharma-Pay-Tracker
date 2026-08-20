@@ -87,7 +87,7 @@ export default function CustomersScreen() {
   const isWeb = Platform.OS === "web";
   const { isDesktop, isTablet } = useBreakpoint();
 
-  const { data: customers, isLoading, refetch } = useGetCustomers({ search: search || undefined });
+  const { data: customers, isLoading, isError, isFetching, refetch } = useGetCustomers({ search: search || undefined });
 
   const headerPaddingTop = isDesktop ? 20 : isWeb ? 67 + 12 : insets.top + 12;
   const totalOutstanding = (customers ?? []).reduce((s, c) => s + c.totalOutstanding, 0);
@@ -124,6 +124,15 @@ export default function CustomersScreen() {
 
       {isLoading ? (
         <View style={styles.loader}><ActivityIndicator color={colors.primary} size="large" /></View>
+      ) : isError && !customers ? (
+        <View style={styles.loader}>
+          <Feather name="wifi-off" size={34} color={colors.mutedForeground} />
+          <Text style={[styles.loadTitle, { color: colors.foreground }]}>Server start ho raha hai</Text>
+          <Text style={[styles.loadText, { color: colors.mutedForeground }]}>Data safe hai. Thoda wait karke retry karein.</Text>
+          <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()} disabled={isFetching}>
+            <Text style={styles.retryText}>{isFetching ? "Loading..." : "Retry"}</Text>
+          </TouchableOpacity>
+        </View>
       ) : isDesktop ? (
         customers && customers.length > 0 ? (
           <View style={{ flex: 1, paddingHorizontal: 28, paddingBottom: 28 }}>
@@ -172,6 +181,10 @@ const styles = StyleSheet.create({
   addBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
   searchWrap: { paddingVertical: 8 },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
+  loadTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginTop: 14 },
+  loadText: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 6, textAlign: "center" },
+  retryBtn: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 11, borderRadius: 12 },
+  retryText: { color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold" },
   list: { paddingTop: 4 },
 });
 
