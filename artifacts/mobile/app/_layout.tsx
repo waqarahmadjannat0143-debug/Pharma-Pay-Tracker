@@ -38,7 +38,11 @@ queryClient=new QueryClient({
       // invalidate immediately so newly added/edited data appears at once.
       staleTime:30000,
       gcTime:600000,
-      retry:1,
+      // Render's free service can take a while to wake after inactivity.
+      // Keep retrying long enough for the backend to become available instead
+      // of treating a temporary wake-up failure as an empty database.
+      retry:4,
+      retryDelay:attempt=>Math.min(2000*Math.pow(2,attempt),15000),
       refetchOnMount:true,
       refetchOnWindowFocus:true,
       refetchOnReconnect:true,
@@ -80,6 +84,14 @@ function RootLayoutNav(){
 
 export default function RootLayout(){
   const[fontsLoaded,fontError]=useFonts({Inter_400Regular,Inter_500Medium,Inter_600SemiBold,Inter_700Bold});
+
+  useEffect(()=>{
+    // Start waking the free Render instance as soon as the app opens. The
+    // authenticated queries below retry independently while this completes.
+    fetch(`https://${apiDomain}/api/healthz`,{
+      headers:{"Cache-Control":"no-cache"},
+    }).catch(()=>undefined);
+  },[]);
 
   useEffect(()=>{
     if(fontsLoaded||fontError)SplashScreen.hideAsync();
