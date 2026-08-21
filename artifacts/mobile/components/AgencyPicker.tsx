@@ -1,0 +1,16 @@
+import React, { useMemo, useState } from "react";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useColors } from "@/hooks/useColors";
+import { Agency, medpayApi } from "@/lib/medpayApi";
+
+export function AgencyPicker({ value, name, onChange }: { value?: number; name?: string; onChange: (agency: Agency) => void }) {
+  const colors=useColors(),qc=useQueryClient();
+  const[open,setOpen]=useState(false),[search,setSearch]=useState(""),[saving,setSaving]=useState(false);
+  const q=useQuery({queryKey:["agencies"],queryFn:()=>medpayApi<Agency[]>("/api/agencies")});
+  const rows=useMemo(()=>{const x=search.trim().toLowerCase();return(q.data||[]).filter(a=>!x||a.name.toLowerCase().includes(x))},[q.data,search]);
+  const create=async()=>{const proposed=search.trim();if(!proposed)return;setSaving(true);try{const agency=await medpayApi<Agency>("/api/agencies",{method:"POST",body:JSON.stringify({name:proposed})});await qc.invalidateQueries({queryKey:["agencies"]});onChange(agency);setSearch("");setOpen(false)}catch(e:any){Alert.alert("Agency",e.message)}finally{setSaving(false)}};
+  return <View style={s.wrap}><Text style={[s.label,{color:colors.mutedForeground}]}>Agency *</Text><TouchableOpacity style={[s.selector,{backgroundColor:colors.card,borderColor:colors.border}]} onPress={()=>setOpen(!open)}><Text style={{color:value?colors.foreground:colors.mutedForeground}}>{name||"Search & select agency"}</Text><Feather name={open?"chevron-up":"chevron-down"} size={16} color={colors.mutedForeground}/></TouchableOpacity>{open&&<View style={[s.panel,{backgroundColor:colors.card,borderColor:colors.border}]}><View style={s.search}><Feather name="search" size={16} color={colors.mutedForeground}/><TextInput autoFocus value={search} onChangeText={setSearch} placeholder="Agency name" placeholderTextColor={colors.mutedForeground} style={{flex:1,color:colors.foreground}}/></View><ScrollView style={{maxHeight:190}} keyboardShouldPersistTaps="handled">{q.isLoading?<ActivityIndicator color={colors.primary}/>:rows.map(a=><TouchableOpacity key={a.id} style={[s.item,{borderColor:colors.border}]} onPress={()=>{onChange(a);setOpen(false);setSearch("")}}><Text style={{color:colors.foreground}}>{a.name}</Text></TouchableOpacity>)}{!!search.trim()&&!rows.length&&<TouchableOpacity style={[s.create,{backgroundColor:colors.primary}]} onPress={create} disabled={saving}>{saving?<ActivityIndicator color="#fff"/>:<Text style={{color:"#fff",fontFamily:"Inter_600SemiBold"}}>+ Create “{search.trim()}”</Text>}</TouchableOpacity>}</ScrollView></View>}</View>
+}
+const s=StyleSheet.create({wrap:{gap:6},label:{fontSize:12,fontFamily:"Inter_500Medium"},selector:{borderWidth:1,borderRadius:10,padding:12,flexDirection:"row",justifyContent:"space-between"},panel:{borderWidth:1,borderRadius:10,overflow:"hidden"},search:{flexDirection:"row",alignItems:"center",gap:8,paddingHorizontal:12},item:{padding:12,borderTopWidth:StyleSheet.hairlineWidth},create:{padding:12,alignItems:"center",margin:8,borderRadius:8}});
