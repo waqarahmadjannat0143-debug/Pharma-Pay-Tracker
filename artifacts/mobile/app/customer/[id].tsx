@@ -88,13 +88,6 @@ export default function CustomerDetailScreen() {
 
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "40" }]}
-            onPress={() => router.push({ pathname: "/register/[customerId]", params: { customerId: id, customerName: customer.name } } as any)}
-          >
-            <Feather name="calendar" size={16} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>Register</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => router.push(`/customer/edit/${id}`)}
           >
