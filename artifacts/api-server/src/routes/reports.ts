@@ -71,7 +71,7 @@ router.get("/aging", async (req: AuthRequest, res) => {
 router.get("/invoice-payments/:invoiceId", async (req: AuthRequest, res) => {
   try {
     const invoiceId = Number(req.params.invoiceId);
-    const rows = await db.select({ paymentId: paymentsTable.id, paymentDate: paymentsTable.paymentDate, paymentMode: paymentsTable.paymentMode, notes: paymentsTable.notes, amount: paymentAllocationsTable.amount })
+    const rows = await db.select({ paymentId: paymentsTable.id, paymentDate: paymentsTable.paymentDate, paymentMode: paymentsTable.paymentMode, slipNumber: paymentsTable.slipNumber, notes: paymentsTable.notes, amount: paymentAllocationsTable.amount })
       .from(paymentAllocationsTable).innerJoin(paymentsTable, eq(paymentAllocationsTable.paymentId, paymentsTable.id))
       .where(eq(paymentAllocationsTable.invoiceId, invoiceId)).orderBy(desc(paymentsTable.paymentDate));
     res.json(rows.map(r => ({ ...r, amount: Number(r.amount) })));

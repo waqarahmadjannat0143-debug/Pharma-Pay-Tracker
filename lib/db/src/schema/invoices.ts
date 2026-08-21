@@ -2,6 +2,7 @@ import { pgTable, text, serial, timestamp, numeric, integer, date } from "drizzl
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { customersTable } from "./customers";
+import { agenciesTable } from "./agencies";
 
 export const invoiceStatusEnum = ["paid", "partial", "pending", "overdue"] as const;
 export type InvoiceStatus = typeof invoiceStatusEnum[number];
@@ -9,6 +10,7 @@ export type InvoiceStatus = typeof invoiceStatusEnum[number];
 export const invoicesTable = pgTable("invoices", {
   id: serial("id").primaryKey(),
   customerId: integer("customer_id").notNull().references(() => customersTable.id, { onDelete: "cascade" }),
+  agencyId: integer("agency_id").references(() => agenciesTable.id, { onDelete: "restrict" }),
   invoiceNumber: text("invoice_number").notNull(),
   invoiceDate: date("invoice_date", { mode: "string" }).notNull(),
   billAmount: numeric("bill_amount", { precision: 12, scale: 2 }).notNull(),

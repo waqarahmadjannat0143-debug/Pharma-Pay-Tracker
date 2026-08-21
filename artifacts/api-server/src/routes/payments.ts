@@ -33,7 +33,7 @@ router.get("/", async (req: AuthRequest, res) => {
 
 router.post("/", async (req: AuthRequest, res) => {
   try {
-    const { customerId, paymentDate, amount, paymentMode, notes, invoiceIds } = req.body;
+    const { customerId, paymentDate, amount, paymentMode, slipNumber, notes, invoiceIds } = req.body;
     const numericAmount = Number(amount);
     if (!customerId || !paymentDate || !Number.isFinite(numericAmount) || numericAmount <= 0 || !paymentMode) { res.status(400).json({ error: "Invalid payment data" }); return; }
     let pendingInvoices = await db.select().from(invoicesTable).where(and(eq(invoicesTable.customerId, customerId), inArray(invoicesTable.status, ["pending", "partial", "overdue"]), gt(invoicesTable.outstandingBalance, "0"), Array.isArray(invoiceIds) && invoiceIds.length ? inArray(invoicesTable.id, invoiceIds.map((x: unknown) => Number(x))) : undefined)).orderBy(asc(invoicesTable.invoiceDate));
@@ -46,7 +46,7 @@ router.post("/", async (req: AuthRequest, res) => {
     }
     if (!pendingInvoices.length) { res.status(400).json({ error: "No pending invoices available for payment" }); return; }
     const result = await db.transaction(async tx => {
-      const [payment] = await tx.insert(paymentsTable).values({ customerId, paymentDate, amount:numericAmount.toFixed(2), paymentMode, notes:notes||null }).returning();
+      const [payment] = await tx.insert(paymentsTable).values({ customerId, paymentDate, amount:numericAmount.toFixed(2), paymentMode, slipNumber:slipNumber?.trim()||null, notes:notes||null }).returning();
       let remaining=numericAmount; const allocations:any[]=[];
       for (const invoice of pendingInvoices) { if (remaining<=.001) break; const outstanding=Number(invoice.outstandingBalance); const allocated=Math.min(remaining,outstanding); const balance=outstanding-allocated; await tx.update(invoicesTable).set({outstandingBalance:Math.max(balance,0).toFixed(2),status:statusForBalance(balance,Number(invoice.billAmount),invoice.dueDate)}).where(eq(invoicesTable.id,invoice.id)); await tx.insert(paymentAllocationsTable).values({paymentId:payment.id,invoiceId:invoice.id,amount:allocated.toFixed(2)}); allocations.push({invoiceId:invoice.id,invoiceNumber:invoice.invoiceNumber,amount:allocated}); remaining-=allocated; }
       return {payment,allocations};

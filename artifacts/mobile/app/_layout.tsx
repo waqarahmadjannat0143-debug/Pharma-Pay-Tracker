@@ -56,7 +56,7 @@ function RootLayoutNav(){
   const router=useRouter();
   useEffect(()=>{
     if(isLoading)return;
-    const protectedSegments=["(tabs)","customer","invoice","payment","report","backup"];
+    const protectedSegments=["(tabs)","customer","invoice","payment","report","backup","register"];
     const inProtected=protectedSegments.includes(segments[0] as string);
     if(!isAuthenticated&&inProtected)router.replace("/login");
     else if(isAuthenticated&&segments[0]==="login")router.replace("/(tabs)");
@@ -68,6 +68,8 @@ function RootLayoutNav(){
     <Stack.Screen name="customer/add" options={{title:"Add Medical Store",headerBackTitle:"Back"}}/>
     <Stack.Screen name="customer/[id]" options={{title:"Store Details",headerBackTitle:"Back"}}/>
     <Stack.Screen name="customer/edit/[id]" options={{title:"Edit Store",headerBackTitle:"Back"}}/>
+    <Stack.Screen name="register/[customerId]" options={{title:"Monthly Register",headerBackTitle:"Back"}}/>
+    <Stack.Screen name="register/agency" options={{title:"Agency Bills",headerBackTitle:"Back"}}/>
     <Stack.Screen name="invoice/add" options={{title:"Add Invoice",headerBackTitle:"Back"}}/>
     <Stack.Screen name="invoice/[id]" options={{title:"Invoice Details",headerBackTitle:"Back"}}/>
     <Stack.Screen name="invoice/edit/[id]" options={{title:"Edit Invoice",headerBackTitle:"Back"}}/>

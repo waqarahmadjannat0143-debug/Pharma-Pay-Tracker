@@ -12,6 +12,7 @@ export const paymentsTable = pgTable("payments", {
   paymentDate: date("payment_date", { mode: "string" }).notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   paymentMode: text("payment_mode").notNull(),
+  slipNumber: text("slip_number"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

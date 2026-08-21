@@ -7,6 +7,7 @@ import { useColors } from "@/hooks/useColors";
 import { formatDateDDMMYY, ddmmyyToISO } from "@/lib/dateFormat";
 import { useCreateInvoice, useGetCustomers, getGetInvoicesQueryKey, getGetCustomerInvoicesQueryKey } from "@workspace/api-client-react";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { AgencyPicker } from "@/components/AgencyPicker";
 
 function todayDisplay() {
   const d = new Date();
@@ -24,6 +25,8 @@ export default function AddInvoiceScreen() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(params.customerId || "");
   const [selectedCustomerName, setSelectedCustomerName] = useState(params.customerName || "");
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [agencyId, setAgencyId] = useState<number>();
+  const [agencyName, setAgencyName] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(todayDisplay());
   const [billAmount, setBillAmount] = useState("");
@@ -38,7 +41,7 @@ export default function AddInvoiceScreen() {
   })();
 
   const handleSave = async () => {
-    if (!selectedCustomerId || !invoiceNumber.trim() || !billAmount || !invoiceDate) {
+    if (!selectedCustomerId || !agencyId || !invoiceNumber.trim() || !billAmount || !invoiceDate) {
       Alert.alert("Validation", "Please fill all required fields");
       return;
     }
@@ -49,11 +52,12 @@ export default function AddInvoiceScreen() {
     try {
       await mutateAsync({ data: {
         customerId: parseInt(selectedCustomerId),
+        agencyId,
         invoiceNumber: invoiceNumber.trim(),
         invoiceDate: invoiceIso,
         billAmount: parseFloat(billAmount),
         dueDate,
-      }});
+      } as any});
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
       if (selectedCustomerId) queryClient.invalidateQueries({ queryKey: getGetCustomerInvoicesQueryKey(parseInt(selectedCustomerId)) });
       router.back();
@@ -85,6 +89,8 @@ export default function AddInvoiceScreen() {
             </View>
           )}
         </View>
+
+        <AgencyPicker value={agencyId} name={agencyName} onChange={a => { setAgencyId(a.id); setAgencyName(a.name); }} />
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Invoice Number *</Text>
