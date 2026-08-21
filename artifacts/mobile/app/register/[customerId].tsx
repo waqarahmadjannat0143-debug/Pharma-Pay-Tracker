@@ -17,7 +17,7 @@ export default function MonthlyRegisterScreen(){
  const query=useQuery({queryKey:["monthly-register",id,month],queryFn:()=>medpayApi<MonthlyRegister>(`/api/monthly-register/${id}?month=${month}`)});
  const move=(by:number)=>{const d=new Date(`${month}-01T00:00:00`);d.setMonth(d.getMonth()+by);setMonth(monthKey(d))};
  const rows=useMemo(()=>(query.data?.agencies||[]).filter(a=>a.agencyName.toLowerCase().includes(search.trim().toLowerCase())&&(filter==="all"||a.status===filter)),[query.data,search,filter]);
- const open=(a:RegisterAgency)=>router.push({pathname:"/register/agency",params:{customerId:String(id),customerName:customerName||"",agencyId:String(a.agencyId),agencyName:a.agencyName,month}});
+ const open=(a:RegisterAgency)=>router.push({pathname:"/register/agency",params:{customerId:String(id),customerName:customerName||"",agencyId:String(a.agencyId),agencyName:a.agencyName,month}} as any);
  const sum=query.data?.summary;
  return <View style={[s.page,{backgroundColor:colors.background}]}><ScrollView contentContainerStyle={s.content}>
   <Text style={[s.store,{color:colors.mutedForeground}]}>{customerName||"Medical Store"}</Text>
