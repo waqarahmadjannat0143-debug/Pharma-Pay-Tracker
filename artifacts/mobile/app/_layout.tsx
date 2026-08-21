@@ -68,7 +68,7 @@ function RootLayoutNav(){
     <Stack.Screen name="customer/add" options={{title:"Add Medical Store",headerBackTitle:"Back"}}/>
     <Stack.Screen name="customer/[id]" options={{title:"Store Details",headerBackTitle:"Back"}}/>
     <Stack.Screen name="customer/edit/[id]" options={{title:"Edit Store",headerBackTitle:"Back"}}/>
-    <Stack.Screen name="register/[customerId]" options={{title:"Monthly Register",headerBackTitle:"Back"}}/>
+    <Stack.Screen name="register/index" options={{title:"Monthly Register",headerBackTitle:"Back"}}/>
     <Stack.Screen name="register/agency" options={{title:"Agency Bills",headerBackTitle:"Back"}}/>
     <Stack.Screen name="invoice/add" options={{title:"Add Invoice",headerBackTitle:"Back"}}/>
     <Stack.Screen name="invoice/[id]" options={{title:"Invoice Details",headerBackTitle:"Back"}}/>
