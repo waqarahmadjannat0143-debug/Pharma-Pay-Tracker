@@ -7,6 +7,8 @@ import paymentsRouter from "./payments";
 import dashboardRouter from "./dashboard";
 import reportsRouter from "./reports";
 import backupRouter from "./backup";
+import agenciesRouter from "./agencies";
+import monthlyRegisterRouter from "./monthlyRegister";
 
 const router: IRouter = Router();
 
@@ -18,5 +20,7 @@ router.use("/payments", paymentsRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/reports", reportsRouter);
 router.use("/backup", backupRouter);
+router.use("/agencies", agenciesRouter);
+router.use("/monthly-register", monthlyRegisterRouter);
 
 export default router;
