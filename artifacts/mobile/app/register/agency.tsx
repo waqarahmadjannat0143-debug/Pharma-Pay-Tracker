@@ -16,7 +16,7 @@ export default function AgencyBills(){
  const bills=q.data?.bills||[];
  return <View style={[s.page,{backgroundColor:colors.background}]}><ScrollView contentContainerStyle={[s.content,desktop&&s.desktopContent]}>
   <Text style={[s.title,{color:colors.foreground}]}>{p.agencyName}</Text>
-  <Text style={[s.subtitle,{color:colors.mutedForeground}]}>{new Date(`${p.month}-01`).toLocaleDateString("en-IN",{month:"long",year:"numeric"})} · All Medical Stores</Text>
+  <Text style={[s.subtitle,{color:colors.mutedForeground}]}>{new Date(`${p.month}-01`).toLocaleDateString("en-IN",{month:"long",year:"numeric"})} · Monthly Bills</Text>
   {q.isLoading?<ActivityIndicator color={colors.primary} style={{margin:35}}/>:!bills.length?<Text style={{color:colors.mutedForeground,padding:30,textAlign:"center"}}>No bills</Text>:<>
    {desktop&&<View style={[s.header,{backgroundColor:colors.primary}]}>{["S.No","Medical Store","Bill No","Bill Date","Amount","Paid","Baki"].map((x,i)=><Text key={x} style={[s.headCell,i===0&&s.serial]}>{x}</Text>)}</View>}
    {bills.map((b,i)=><TouchableOpacity key={b.id} onPress={()=>router.push(`/invoice/${b.id}`)} activeOpacity={.75} style={[desktop?s.row:s.card,{backgroundColor:colors.card,borderColor:colors.border}]}>
