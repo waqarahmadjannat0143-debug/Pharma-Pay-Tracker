@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View, FlatList, StyleSheet, TouchableOpacity, Text,
   Platform, ActivityIndicator, ScrollView,
@@ -87,7 +87,16 @@ export default function CustomersScreen() {
   const isWeb = Platform.OS === "web";
   const { isDesktop, isTablet } = useBreakpoint();
 
-  const { data: customers, isLoading, isError, isFetching, refetch } = useGetCustomers({ search: search || undefined });
+  const { data: allCustomers, isLoading, isError, isFetching, refetch } = useGetCustomers({});
+  const customers = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return allCustomers;
+    return allCustomers?.filter(customer =>
+      customer.name.toLowerCase().includes(term) ||
+      customer.ownerName?.toLowerCase().includes(term) ||
+      customer.mobile?.includes(term)
+    );
+  }, [allCustomers, search]);
 
   const headerPaddingTop = isDesktop ? 20 : isWeb ? 67 + 12 : insets.top + 12;
   const totalOutstanding = (customers ?? []).reduce((s, c) => s + c.totalOutstanding, 0);

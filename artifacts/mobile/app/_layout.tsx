@@ -1,7 +1,8 @@
 import {
   Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts,
 } from "@expo-google-fonts/inter";
-import { QueryClient, QueryClientProvider, focusManager, MutationCache } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, focusManager, MutationCache, dehydrate, hydrate } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -20,6 +21,7 @@ setBaseUrl(`https://${apiDomain}`);
 setAuthTokenGetter(getToken);
 
 let queryClient: QueryClient;
+const QUERY_CACHE_KEY = "medpay-query-cache-v1";
 const mutationCache = new MutationCache({
   onSuccess: async () => {
     // A successful mutation can affect dashboard, stores, invoices,
@@ -36,15 +38,15 @@ queryClient=new QueryClient({
       // Keep recently loaded data fresh for 30 seconds. This avoids repeated
       // network calls while moving between screens, while mutations still
       // invalidate immediately so newly added/edited data appears at once.
-      staleTime:30000,
-      gcTime:600000,
+      staleTime:300000,
+      gcTime:86400000,
       // Render's free service can take a while to wake after inactivity.
       // Keep retrying long enough for the backend to become available instead
       // of treating a temporary wake-up failure as an empty database.
       retry:4,
       retryDelay:attempt=>Math.min(2000*Math.pow(2,attempt),15000),
-      refetchOnMount:true,
-      refetchOnWindowFocus:true,
+      refetchOnMount:false,
+      refetchOnWindowFocus:false,
       refetchOnReconnect:true,
     },
   },
@@ -86,6 +88,33 @@ function RootLayoutNav(){
 
 export default function RootLayout(){
   const[fontsLoaded,fontError]=useFonts({Inter_400Regular,Inter_500Medium,Inter_600SemiBold,Inter_700Bold});
+  const[cacheReady,setCacheReady]=React.useState(false);
+
+  useEffect(()=>{
+    let active=true;
+    AsyncStorage.getItem(QUERY_CACHE_KEY)
+      .then(raw=>{
+        if(!raw)return;
+        const cached=JSON.parse(raw);
+        if(cached?.timestamp>Date.now()-86400000&&cached?.state)hydrate(queryClient,cached.state);
+      })
+      .catch(()=>undefined)
+      .finally(()=>{if(active)setCacheReady(true)});
+    return()=>{active=false};
+  },[]);
+
+  useEffect(()=>{
+    if(!cacheReady)return;
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    const unsubscribe=queryClient.getQueryCache().subscribe(()=>{
+      if(timer)clearTimeout(timer);
+      timer=setTimeout(()=>{
+        const state=dehydrate(queryClient,{shouldDehydrateQuery:q=>q.state.status==="success"});
+        AsyncStorage.setItem(QUERY_CACHE_KEY,JSON.stringify({timestamp:Date.now(),state})).catch(()=>undefined);
+      },750);
+    });
+    return()=>{if(timer)clearTimeout(timer);unsubscribe()};
+  },[cacheReady]);
 
   useEffect(()=>{
     // Start waking the free Render instance as soon as the app opens. The
@@ -109,7 +138,7 @@ export default function RootLayout(){
     return()=>subscription.remove();
   },[]);
 
-  if(!fontsLoaded&&!fontError)return null;
+  if((!fontsLoaded&&!fontError)||!cacheReady)return null;
   return <SafeAreaProvider>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
