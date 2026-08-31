@@ -79,6 +79,8 @@ export default function EditPaymentScreen() {
       queryClient.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetCustomersQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports/date-wise-collection"] });
       Alert.alert("Updated", "Payment successfully update ho gaya.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: any) { Alert.alert("Error", e.message || "Failed to edit payment"); }
     finally { setSaving(false); }
