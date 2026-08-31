@@ -34,7 +34,7 @@ export default function AddPaymentScreen() {
   const colors = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ customerId?: string; customerName?: string; invoiceId?: string }>();
+  const params = useLocalSearchParams<{ customerId?: string; customerName?: string }>();
   const { mutateAsync, isPending } = useRecordPayment();
   const { data: customers } = useGetCustomers({});
 
@@ -42,12 +42,11 @@ export default function AddPaymentScreen() {
   const [selectedCustomerName, setSelectedCustomerName] = useState(params.customerName || "");
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
-  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>(params.invoiceId ? [Number(params.invoiceId)] : []);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>([]);
   const [amount, setAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [paymentDate, setPaymentDate] = useState(todayDisplay());
   const [notes, setNotes] = useState("");
-  const [slipNumber, setSlipNumber] = useState("");
 
   const filteredCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
@@ -96,12 +95,14 @@ export default function AddPaymentScreen() {
     try {
       const result = await mutateAsync({ data: {
         customerId: parseInt(selectedCustomerId), paymentDate: isoDate, amount: numericAmount,
-        paymentMode, slipNumber: slipNumber.trim() || undefined, notes: notes.trim() || undefined, invoiceIds: selectedInvoiceIds,
+        paymentMode, notes: notes.trim() || undefined, invoiceIds: selectedInvoiceIds,
       } as any });
       queryClient.invalidateQueries({ queryKey: getGetPaymentsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetCustomersQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports/date-wise-collection"] });
       const allocated = result.allocations?.length || 0;
       Alert.alert("Payment Recorded", `${money(numericAmount)} paid successfully.\n${allocated} bill(s) updated.`, [{ text: "OK", onPress: () => router.back() }]);
     } catch (err: any) {
@@ -114,10 +115,6 @@ export default function AddPaymentScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.mutedForeground }]}>Slip / Receipt Number (Optional)</Text>
-          <TextInput value={slipNumber} onChangeText={setSlipNumber} placeholder="e.g. UTR / cheque / receipt no." placeholderTextColor={colors.mutedForeground} style={inputStyle} />
-        </View>
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Medical Store *</Text>
           <TouchableOpacity style={[styles.selector, { borderColor: colors.border, backgroundColor: colors.card }]} onPress={() => setShowCustomerPicker(v => !v)}>
