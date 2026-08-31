@@ -2,15 +2,20 @@ import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Platform, TextInput } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
+import { getToken } from "@/lib/apiToken";
 import { formatDateDDMMYY, ddmmyyToISO } from "@/lib/dateFormat";
 import { EmptyState } from "@/components/EmptyState";
-import { useGetDateWiseCollection, useGetMonthlyCollectionReport } from "@workspace/api-client-react";
+import { useGetMonthlyCollectionReport } from "@workspace/api-client-react";
+
+const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN || "pharma-pay-tracker.onrender.com"}`;
 
 function formatCurrency(amount: number) { return "₹" + amount.toLocaleString("en-IN", { minimumFractionDigits: 0 }); }
 function iso(d: Date) { return d.toISOString().split("T")[0]; }
 
 type Preset = "today" | "week" | "month" | "year" | "custom" | "all";
+type DailyCollection = { date: string; amount: number; count: number };
 
 export default function CollectionScreen() {
   const colors = useColors(); const insets = useSafeAreaInsets(); const isWeb = Platform.OS === "web";
@@ -25,10 +30,28 @@ export default function CollectionScreen() {
     if (preset === "month") return { fromDate: `${today.slice(0,7)}-01`, toDate: today };
     if (preset === "year") return { fromDate: `${today.slice(0,4)}-01-01`, toDate: today };
     if (preset === "custom") return { fromDate: ddmmyyToISO(customFrom) || undefined, toDate: ddmmyyToISO(customTo) || undefined };
-    return {};
+    return { fromDate: "2000-01-01", toDate: "2099-12-31" };
   }, [preset, customFrom, customTo]);
 
-  const year = new Date().getFullYear(); const { data: daily, isLoading: dailyLoading } = useGetDateWiseCollection(range); const { data: monthly } = useGetMonthlyCollectionReport({ year });
+  const year = new Date().getFullYear();
+  // Use the exact same endpoint and query key as Dashboard. This prevents the
+  // two screens from showing different persisted-cache snapshots.
+  const { data: overview, isLoading: dailyLoading } = useQuery<{ periodRows: DailyCollection[] }>({
+    queryKey: ["dashboard-overview", range.fromDate, range.toDate],
+    enabled: Boolean(range.fromDate && range.toDate),
+    staleTime: 0,
+    refetchOnMount: "always",
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE}/api/dashboard/overview?fromDate=${range.fromDate}&toDate=${range.toDate}`, {
+        headers: { Authorization: `Bearer ${getToken()}`, "Cache-Control": "no-cache" },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Collection report load failed");
+      return body;
+    },
+  });
+  const daily = overview?.periodRows ?? [];
+  const { data: monthly } = useGetMonthlyCollectionReport({ year });
   const total = (daily ?? []).reduce((s, row) => s + row.amount, 0); const count = (daily ?? []).reduce((s, row) => s + row.count, 0);
   const chips: { key: Preset; label: string }[] = [{ key: "today", label: "Today" }, { key: "week", label: "7 Days" }, { key: "month", label: "This Month" }, { key: "year", label: "This Year" }, { key: "all", label: "All" }, { key: "custom", label: "Custom" }];
 
