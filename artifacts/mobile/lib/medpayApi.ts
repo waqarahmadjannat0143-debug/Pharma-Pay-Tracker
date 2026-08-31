@@ -17,7 +17,7 @@ export type Agency = { id: number; name: string; existing?: boolean };
 
 export type RegisterAgency = {
   agencyId: number; agencyName: string; totalBills: number; totalBillAmount: number;
-  totalStores?: number; totalPaid: number; totalRemaining: number; status: "paid" | "partial" | "outstanding";
+  totalStores?: number; totalPaid: number; totalRemaining: number; status: "paid" | "partial" | "outstanding" | "no_transaction";
 };
 
 export type MonthlyRegister = {
