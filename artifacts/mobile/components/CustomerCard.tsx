@@ -15,7 +15,14 @@ function formatCurrency(amount: number) {
   return "₹" + amount.toLocaleString("en-IN", { maximumFractionDigits: 0 });
 }
 
-const AVATAR_COLORS = ["#1565C0", "#0891B2", "#7C3AED", "#059669", "#D97706", "#DC2626"];
+const AVATAR_COLORS = [
+  "#2563EB",
+  "#14B8A6",
+  "#0F766E",
+  "#16A34A",
+  "#F59E0B",
+  "#475569",
+];
 
 function getAvatarColor(name: string) {
   let h = 0;
@@ -27,11 +34,19 @@ export function CustomerCard({ customer, onPress }: CustomerCardProps) {
   const colors = useColors();
   const hasOutstanding = customer.totalOutstanding > 0;
   const avatarColor = getAvatarColor(customer.name);
-  const initials = customer.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const initials = customer.name
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[
+        styles.card,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
       onPress={onPress}
       activeOpacity={0.72}
     >
@@ -41,14 +56,28 @@ export function CustomerCard({ customer, onPress }: CustomerCardProps) {
         </View>
 
         <View style={styles.info}>
-          <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>{customer.name}</Text>
-          <Text style={[styles.owner, { color: colors.mutedForeground }]} numberOfLines={1}>
+          <Text
+            style={[styles.name, { color: colors.foreground }]}
+            numberOfLines={1}
+          >
+            {customer.name}
+          </Text>
+          <Text
+            style={[styles.owner, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
             {customer.ownerName}
           </Text>
           <View style={styles.badgeRow}>
-            <View style={[styles.mobileBadge, { backgroundColor: colors.muted }]}>
+            <View
+              style={[styles.mobileBadge, { backgroundColor: colors.muted }]}
+            >
               <Feather name="phone" size={9} color={colors.mutedForeground} />
-              <Text style={[styles.mobileText, { color: colors.mutedForeground }]}>{customer.mobile}</Text>
+              <Text
+                style={[styles.mobileText, { color: colors.mutedForeground }]}
+              >
+                {customer.mobile}
+              </Text>
             </View>
           </View>
         </View>
@@ -59,15 +88,34 @@ export function CustomerCard({ customer, onPress }: CustomerCardProps) {
               <Text style={[styles.outstanding, { color: colors.overdue }]}>
                 {formatCurrency(customer.totalOutstanding)}
               </Text>
-              <Text style={[styles.dueLabel, { color: colors.mutedForeground }]}>outstanding</Text>
+              <Text
+                style={[styles.dueLabel, { color: colors.mutedForeground }]}
+              >
+                outstanding
+              </Text>
             </>
           ) : (
-            <View style={[styles.clearedBadge, { backgroundColor: colors.paid + "18", borderColor: colors.paid + "40" }]}>
+            <View
+              style={[
+                styles.clearedBadge,
+                {
+                  backgroundColor: colors.paid + "18",
+                  borderColor: colors.paid + "40",
+                },
+              ]}
+            >
               <Feather name="check-circle" size={11} color={colors.paid} />
-              <Text style={[styles.clearedText, { color: colors.paid }]}>Clear</Text>
+              <Text style={[styles.clearedText, { color: colors.paid }]}>
+                Clear
+              </Text>
             </View>
           )}
-          <Feather name="chevron-right" size={15} color={colors.border} style={{ marginTop: 4 }} />
+          <Feather
+            name="chevron-right"
+            size={15}
+            color={colors.border}
+            style={{ marginTop: 4 }}
+          />
         </View>
       </View>
     </TouchableOpacity>
@@ -81,6 +129,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginHorizontal: 16,
     marginVertical: 4,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: {
@@ -95,11 +148,26 @@ const styles = StyleSheet.create({
   name: { fontSize: 14, fontFamily: "Inter_700Bold" },
   owner: { fontSize: 12, fontFamily: "Inter_400Regular" },
   badgeRow: { flexDirection: "row", gap: 6, marginTop: 2 },
-  mobileBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 },
+  mobileBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
   mobileText: { fontSize: 10, fontFamily: "Inter_400Regular" },
   right: { alignItems: "flex-end", gap: 2 },
   outstanding: { fontSize: 15, fontFamily: "Inter_700Bold" },
   dueLabel: { fontSize: 10, fontFamily: "Inter_400Regular" },
-  clearedBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  clearedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
   clearedText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });
