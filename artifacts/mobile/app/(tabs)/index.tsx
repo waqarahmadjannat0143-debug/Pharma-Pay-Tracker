@@ -1,5 +1,15 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform, ActivityIndicator, useWindowDimensions } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Platform,
+  ActivityIndicator,
+  useWindowDimensions,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,28 +20,840 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getToken } from "@/lib/apiToken";
 import { formatLocalISODate } from "@/lib/dateFormat";
 
-const API_BASE=`https://${process.env.EXPO_PUBLIC_DOMAIN||"pharma-pay-tracker.onrender.com"}`;
-function fmt(n:number){return "₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:0})}
-function short(n:number){if(n>=100000)return "₹"+(n/100000).toFixed(1)+"L";if(n>=1000)return "₹"+(n/1000).toFixed(1)+"K";return fmt(n)}
-const iso=formatLocalISODate;
-function greeting(){const h=new Date().getHours();return h<12?"Good morning":h<17?"Good afternoon":"Good evening"}
-type Period="today"|"week"|"month"|"year";
+const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN || "pharma-pay-tracker.onrender.com"}`;
+function fmt(n: number) {
+  return (
+    "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })
+  );
+}
+function short(n: number) {
+  if (n >= 100000) return "₹" + (n / 100000).toFixed(1) + "L";
+  if (n >= 1000) return "₹" + (n / 1000).toFixed(1) + "K";
+  return fmt(n);
+}
+const iso = formatLocalISODate;
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+}
+type Period = "today" | "week" | "month" | "year";
 
-export default function DashboardScreen(){
- const colors=useColors(),router=useRouter(),insets=useSafeAreaInsets();const{username,logout}=useAuth();const isWeb=Platform.OS==="web";const{width}=useWindowDimensions();const isDesktop=isWeb&&width>=1024;const[period,setPeriod]=useState<Period>("month");
- const range=useMemo(()=>{const now=new Date(),today=iso(now);if(period==="today")return{fromDate:today,toDate:today};if(period==="week"){const d=new Date(now);d.setDate(d.getDate()-6);return{fromDate:iso(d),toDate:today}}if(period==="year")return{fromDate:`${today.slice(0,4)}-01-01`,toDate:today};return{fromDate:`${today.slice(0,7)}-01`,toDate:today}},[period]);
- const{data,isLoading,isError,isFetching,refetch}=useQuery({queryKey:["dashboard-overview",range.fromDate,range.toDate],staleTime:120000,gcTime:600000,placeholderData:(prev)=>prev,queryFn:async()=>{const token=getToken();const r=await fetch(`${API_BASE}/api/dashboard/overview?fromDate=${range.fromDate}&toDate=${range.toDate}`,{headers:{Authorization:`Bearer ${token}`,"Cache-Control":"no-cache"}});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.error||"Dashboard load failed");return body;}});
- const stats=data?.stats,monthly=data?.monthly??[],periodRows=data?.periodRows??[];const periodCollection=periodRows.reduce((s:number,x:any)=>s+Number(x.amount||0),0),periodPayments=periodRows.reduce((s:number,x:any)=>s+Number(x.count||0),0);const totalPaid=Number(stats?.totalPaid||0),totalOutstanding=Number(stats?.totalOutstanding||0),paymentBase=Math.max(totalPaid+totalOutstanding,1),paidPercent=Math.round(totalPaid/paymentBase*100),duePercent=100-paidPercent;
- const goCollection=(p:string)=>router.push(`/report/collection?period=${p}` as any);const periods:{key:Period;label:string}[]=[{key:"today",label:"Today"},{key:"week",label:"7 Days"},{key:"month",label:"This Month"},{key:"year",label:"This Year"}];
- if(isLoading&&!data)return <View style={[styles.center,{backgroundColor:colors.background}]}><ActivityIndicator size="large" color={colors.primary}/><Text style={[styles.wakeTitle,{color:colors.foreground}]}>Server start ho raha hai</Text><Text style={[styles.wakeText,{color:colors.mutedForeground}]}>Data load hone mein thoda waqt lag sakta hai.</Text></View>;
- if(isError&&!data)return <View style={[styles.center,{backgroundColor:colors.background}]}><Feather name="wifi-off" size={36} color={colors.mutedForeground}/><Text style={[styles.wakeTitle,{color:colors.foreground}]}>Data load nahi hua</Text><Text style={[styles.wakeText,{color:colors.mutedForeground}]}>Data safe hai. Server wake hone ke baad retry karein.</Text><TouchableOpacity style={[styles.retry,{backgroundColor:colors.primary}]} onPress={()=>refetch()} disabled={isFetching}><Text style={styles.retryText}>{isFetching?"Loading...":"Retry"}</Text></TouchableOpacity></View>;
- return <View style={[styles.container,{backgroundColor:colors.background}]}><ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch}/>} contentContainerStyle={[styles.scrollContent,{paddingBottom:insets.bottom+(isWeb?30:90)}]}><View style={[styles.page,isDesktop&&styles.pageDesktop]}>
- <LinearGradient colors={["#1565C0","#2196F3"]} style={[styles.hero,{paddingTop:isDesktop?28:(isWeb?60:insets.top+18)},isDesktop&&styles.heroDesktop]}><View style={[styles.heroTop,isDesktop&&styles.heroTopDesktop]}><View><Text style={styles.greeting}>{greeting()}</Text><Text style={[styles.user,isDesktop&&styles.userDesktop]}>{username||"admin"}</Text><Text style={styles.desktopWelcome}>{isDesktop?"Here is your payment overview":""}</Text></View><TouchableOpacity style={styles.logout} onPress={logout}><Feather name="log-out" size={18} color="#fff"/></TouchableOpacity></View><TouchableOpacity style={[styles.outstanding,isDesktop&&styles.outstandingDesktop]} onPress={()=>router.push("/report/outstanding")} activeOpacity={.8}><View style={styles.cardTitleRow}><Text style={styles.outLabel}>TOTAL OUTSTANDING</Text><Feather name="chevron-right" size={20} color="rgba(255,255,255,.8)"/></View><Text style={[styles.outValue,isDesktop&&styles.outValueDesktop]}>{fmt(stats?.totalOutstanding??0)}</Text><View style={styles.badges}><Text style={styles.badge}>{stats?.totalCustomers??0} Stores</Text><Text style={styles.badge}>{stats?.overdueCount??0} Overdue</Text></View></TouchableOpacity></LinearGradient>
- <View style={[styles.filterWrap,isDesktop&&styles.filterWrapDesktop]}><Text style={[styles.filterTitle,{color:colors.mutedForeground}]}>FILTER DASHBOARD</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>{periods.map(p=>{const active=p.key===period;return <TouchableOpacity key={p.key} onPress={()=>setPeriod(p.key)} style={[styles.filterChip,{backgroundColor:active?colors.primary:colors.card,borderColor:active?colors.primary:colors.border}]}><Text style={{color:active?"#fff":colors.mutedForeground,fontFamily:"Inter_600SemiBold",fontSize:12}}>{p.label}</Text></TouchableOpacity>})}</ScrollView></View>
- <View style={[styles.grid,isDesktop&&styles.gridDesktop]}><TouchableOpacity style={[styles.tile,isDesktop&&styles.tileDesktop,{backgroundColor:colors.paid+"18",borderColor:colors.paid+"45"}]} onPress={()=>goCollection(period)}><View style={[styles.icon,{backgroundColor:colors.paid+"28"}]}><Feather name="check-circle" size={20} color={colors.paid}/></View><Text style={[styles.value,{color:colors.foreground}]}>{short(periodCollection)}</Text><Text style={[styles.label,{color:colors.mutedForeground}]}>{periods.find(p=>p.key===period)?.label} Collection</Text><Text style={[styles.sub,{color:colors.paid}]}>{periodPayments} payment(s) · View details</Text></TouchableOpacity><TouchableOpacity style={[styles.tile,isDesktop&&styles.tileDesktop,{backgroundColor:colors.primary+"16",borderColor:colors.primary+"40"}]} onPress={()=>goCollection("today")}><View style={[styles.icon,{backgroundColor:colors.primary+"25"}]}><Feather name="sun" size={20} color={colors.primary}/></View><Text style={[styles.value,{color:colors.foreground}]}>{short(stats?.todayCollection??0)}</Text><Text style={[styles.label,{color:colors.mutedForeground}]}>Today's Collection</Text><Text style={[styles.sub,{color:colors.primary}]}>View day-wise details</Text></TouchableOpacity><TouchableOpacity style={[styles.tile,isDesktop&&styles.tileDesktop,{backgroundColor:colors.overdue+"12",borderColor:colors.overdue+"40"}]} onPress={()=>router.push("/report/overdue")}><View style={[styles.icon,{backgroundColor:colors.overdue+"22"}]}><Feather name="alert-triangle" size={20} color={colors.overdue}/></View><Text style={[styles.value,{color:colors.foreground}]}>{stats?.overdueCount??0}</Text><Text style={[styles.label,{color:colors.mutedForeground}]}>Overdue Invoices</Text><Text style={[styles.sub,{color:colors.overdue}]}>View overdue invoices</Text></TouchableOpacity><TouchableOpacity style={[styles.tile,isDesktop&&styles.tileDesktop,{backgroundColor:"#7C3AED18",borderColor:"#7C3AED45"}]} onPress={()=>router.push("/register" as any)}><View style={[styles.icon,{backgroundColor:"#7C3AED25"}]}><Feather name="book-open" size={20} color="#7C3AED"/></View><Text style={[styles.value,{color:colors.foreground}]}>Register</Text><Text style={[styles.label,{color:colors.mutedForeground}]}>Agency Monthly Ledger</Text><Text style={[styles.sub,{color:"#7C3AED"}]}>Month-wise details ›</Text></TouchableOpacity></View>
- <View style={[styles.healthCard,isDesktop&&styles.healthCardDesktop,{backgroundColor:colors.card,borderColor:colors.border}]}><View style={styles.healthHeader}><View><Text style={[styles.chartTitle,{color:colors.foreground}]}>Payment Health</Text><Text style={[styles.healthSubtitle,{color:colors.mutedForeground}]}>Paid aur baki ka live comparison</Text></View><View style={[styles.healthScore,{backgroundColor:colors.primary+"18"}]}><Text style={[styles.healthScoreText,{color:colors.primary}]}>{paidPercent}% Paid</Text></View></View><View style={styles.healthMetrics}><View style={styles.healthMetric}><View style={[styles.healthDot,{backgroundColor:colors.paid}]}/><View><Text style={[styles.healthMetricLabel,{color:colors.mutedForeground}]}>TOTAL PAID</Text><Text style={[styles.healthMetricValue,{color:colors.paid}]}>{short(totalPaid)}</Text></View></View><View style={styles.healthMetric}><View style={[styles.healthDot,{backgroundColor:colors.overdue}]}/><View><Text style={[styles.healthMetricLabel,{color:colors.mutedForeground}]}>OUTSTANDING</Text><Text style={[styles.healthMetricValue,{color:colors.overdue}]}>{short(totalOutstanding)}</Text></View></View></View><View style={[styles.healthTrack,{backgroundColor:colors.overdue+"30"}]}><View style={[styles.healthPaid,{backgroundColor:colors.paid,width:`${paidPercent}%` as any}]}/></View><View style={styles.healthLegend}><Text style={[styles.healthLegendText,{color:colors.paid}]}>{paidPercent}% received</Text><Text style={[styles.healthLegendText,{color:colors.overdue}]}>{duePercent}% baki</Text></View></View>
- <TouchableOpacity style={[styles.chart,isDesktop&&styles.chartDesktop,{backgroundColor:colors.card,borderColor:colors.border}]} onPress={()=>goCollection("year")} activeOpacity={.85}><View style={styles.chartHeader}><View><Text style={[styles.chartTitle,{color:colors.foreground}]}>6-Month Collection Trend</Text><Text style={[styles.healthSubtitle,{color:colors.mutedForeground}]}>Monthly payment performance</Text></View><Text style={[styles.chartSub,{color:colors.primary}]}>Details ›</Text></View><View style={[styles.bars,isDesktop&&styles.barsDesktop]}>{monthly.slice(-6).map((m:any,i:number,arr:any[])=>{const max=Math.max(...arr.map(x=>x.amount),1),h=Math.max(8,(m.amount/max)*(isDesktop?145:90));return <View key={`${m.year}-${m.month}`} style={styles.barCol}><Text style={[styles.barVal,isDesktop&&styles.barValDesktop,{color:colors.mutedForeground}]}>{m.amount?short(m.amount):""}</Text><LinearGradient colors={[colors.primary,"#6EA8FF"]} style={[styles.bar,{height:h}]}/><Text style={[styles.barLabel,isDesktop&&styles.barLabelDesktop,{color:colors.mutedForeground}]}>{m.label}</Text></View>})}</View></TouchableOpacity>
- {!isDesktop&&<><Text style={[styles.quickTitleLabel,{color:colors.mutedForeground}]}>QUICK ACTIONS</Text><View style={styles.quickRow}><TouchableOpacity style={[styles.quick,{backgroundColor:colors.primary}]} onPress={()=>router.push("/invoice/add")}><Feather name="file-plus" size={20} color="#fff"/><Text style={styles.quickText}>Add Invoice</Text></TouchableOpacity><TouchableOpacity style={[styles.quick,{backgroundColor:colors.paid}]} onPress={()=>router.push("/payment/add")}><Feather name="credit-card" size={20} color="#fff"/><Text style={styles.quickText}>Record Payment</Text></TouchableOpacity></View></>}
- </View></ScrollView></View>}
+export default function DashboardScreen() {
+  const colors = useColors(),
+    router = useRouter(),
+    insets = useSafeAreaInsets();
+  const { username, logout } = useAuth();
+  const isWeb = Platform.OS === "web";
+  const { width } = useWindowDimensions();
+  const isDesktop = isWeb && width >= 1024;
+  const [period, setPeriod] = useState<Period>("month");
+  const range = useMemo(() => {
+    const now = new Date(),
+      today = iso(now);
+    if (period === "today") return { fromDate: today, toDate: today };
+    if (period === "week") {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 6);
+      return { fromDate: iso(d), toDate: today };
+    }
+    if (period === "year")
+      return { fromDate: `${today.slice(0, 4)}-01-01`, toDate: today };
+    return { fromDate: `${today.slice(0, 7)}-01`, toDate: today };
+  }, [period]);
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+    queryKey: ["dashboard-overview", range.fromDate, range.toDate],
+    staleTime: 120000,
+    gcTime: 600000,
+    placeholderData: (prev) => prev,
+    queryFn: async () => {
+      const token = getToken();
+      const r = await fetch(
+        `${API_BASE}/api/dashboard/overview?fromDate=${range.fromDate}&toDate=${range.toDate}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-cache",
+          },
+        },
+      );
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(body.error || "Dashboard load failed");
+      return body;
+    },
+  });
+  const stats = data?.stats,
+    monthly = data?.monthly ?? [],
+    periodRows = data?.periodRows ?? [];
+  const periodCollection = periodRows.reduce(
+      (s: number, x: any) => s + Number(x.amount || 0),
+      0,
+    ),
+    periodPayments = periodRows.reduce(
+      (s: number, x: any) => s + Number(x.count || 0),
+      0,
+    );
+  const totalPaid = Number(stats?.totalPaid || 0),
+    totalOutstanding = Number(stats?.totalOutstanding || 0),
+    paymentBase = Math.max(totalPaid + totalOutstanding, 1),
+    paidPercent = Math.round((totalPaid / paymentBase) * 100),
+    duePercent = 100 - paidPercent;
+  const goCollection = (p: string) =>
+    router.push(`/report/collection?period=${p}` as any);
+  const periods: { key: Period; label: string }[] = [
+    { key: "today", label: "Today" },
+    { key: "week", label: "7 Days" },
+    { key: "month", label: "This Month" },
+    { key: "year", label: "This Year" },
+  ];
+  if (isLoading && !data)
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.wakeTitle, { color: colors.foreground }]}>
+          Server start ho raha hai
+        </Text>
+        <Text style={[styles.wakeText, { color: colors.mutedForeground }]}>
+          Data load hone mein thoda waqt lag sakta hai.
+        </Text>
+      </View>
+    );
+  if (isError && !data)
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Feather name="wifi-off" size={36} color={colors.mutedForeground} />
+        <Text style={[styles.wakeTitle, { color: colors.foreground }]}>
+          Data load nahi hua
+        </Text>
+        <Text style={[styles.wakeText, { color: colors.mutedForeground }]}>
+          Data safe hai. Server wake hone ke baad retry karein.
+        </Text>
+        <TouchableOpacity
+          style={[styles.retry, { backgroundColor: colors.primary }]}
+          onPress={() => refetch()}
+          disabled={isFetching}
+        >
+          <Text style={styles.retryText}>
+            {isFetching ? "Loading..." : "Retry"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+        }
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + (isWeb ? 30 : 90) },
+        ]}
+      >
+        <View style={[styles.page, isDesktop && styles.pageDesktop]}>
+          <LinearGradient
+            colors={[colors.card, colors.card]}
+            style={[
+              styles.hero,
+              {
+                paddingTop: isDesktop ? 28 : isWeb ? 60 : insets.top + 18,
+                borderColor: colors.border,
+              },
+              isDesktop && styles.heroDesktop,
+            ]}
+          >
+            <View style={[styles.heroTop, isDesktop && styles.heroTopDesktop]}>
+              <View>
+                <Text
+                  style={[styles.greeting, { color: colors.mutedForeground }]}
+                >
+                  {greeting()}
+                </Text>
+                <Text
+                  style={[
+                    styles.user,
+                    { color: colors.foreground },
+                    isDesktop && styles.userDesktop,
+                  ]}
+                >
+                  {username || "admin"}
+                </Text>
+                <Text
+                  style={[
+                    styles.desktopWelcome,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
+                  {isDesktop ? "Here is your payment overview" : ""}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.logout, { backgroundColor: colors.muted }]}
+                onPress={logout}
+              >
+                <Feather
+                  name="log-out"
+                  size={18}
+                  color={colors.mutedForeground}
+                />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.outstanding,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                isDesktop && styles.outstandingDesktop,
+              ]}
+              onPress={() => router.push("/report/outstanding")}
+              activeOpacity={0.8}
+            >
+              <View style={styles.cardTitleRow}>
+                <View style={styles.outHeading}>
+                  <View
+                    style={[
+                      styles.outIcon,
+                      { backgroundColor: colors.info + "18" },
+                    ]}
+                  >
+                    <Feather
+                      name="trending-down"
+                      size={18}
+                      color={colors.info}
+                    />
+                  </View>
+                  <Text
+                    style={[styles.outLabel, { color: colors.mutedForeground }]}
+                  >
+                    TOTAL OUTSTANDING
+                  </Text>
+                </View>
+                <Feather
+                  name="chevron-right"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.outValue,
+                  { color: colors.foreground },
+                  isDesktop && styles.outValueDesktop,
+                ]}
+              >
+                {fmt(stats?.totalOutstanding ?? 0)}
+              </Text>
+              <View style={styles.badges}>
+                <Text
+                  style={[
+                    styles.badge,
+                    {
+                      color: colors.primary,
+                      backgroundColor: colors.primary + "12",
+                    },
+                  ]}
+                >
+                  {stats?.totalCustomers ?? 0} Stores
+                </Text>
+                <Text
+                  style={[
+                    styles.badge,
+                    {
+                      color: colors.overdue,
+                      backgroundColor: colors.overdue + "10",
+                    },
+                  ]}
+                >
+                  {stats?.overdueCount ?? 0} Overdue
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </LinearGradient>
+          <View
+            style={[styles.filterWrap, isDesktop && styles.filterWrapDesktop]}
+          >
+            <Text
+              style={[styles.filterTitle, { color: colors.mutedForeground }]}
+            >
+              FILTER DASHBOARD
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8 }}
+            >
+              {periods.map((p) => {
+                const active = p.key === period;
+                return (
+                  <TouchableOpacity
+                    key={p.key}
+                    onPress={() => setPeriod(p.key)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        backgroundColor: active ? colors.primary : colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: active ? "#fff" : colors.mutedForeground,
+                        fontFamily: "Inter_600SemiBold",
+                        fontSize: 12,
+                      }}
+                    >
+                      {p.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+          <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
+            <TouchableOpacity
+              style={[
+                styles.tile,
+                isDesktop && styles.tileDesktop,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => goCollection(period)}
+            >
+              <View
+                style={[styles.icon, { backgroundColor: colors.info + "18" }]}
+              >
+                <Feather name="check-circle" size={20} color={colors.info} />
+              </View>
+              <Text style={[styles.value, { color: colors.foreground }]}>
+                {short(periodCollection)}
+              </Text>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>
+                {periods.find((p) => p.key === period)?.label} Collection
+              </Text>
+              <Text style={[styles.sub, { color: colors.info }]}>
+                {periodPayments} payment(s) · View details
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tile,
+                isDesktop && styles.tileDesktop,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => goCollection("today")}
+            >
+              <View
+                style={[
+                  styles.icon,
+                  { backgroundColor: colors.primary + "12" },
+                ]}
+              >
+                <Feather name="sun" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.value, { color: colors.foreground }]}>
+                {short(stats?.todayCollection ?? 0)}
+              </Text>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>
+                Today's Collection
+              </Text>
+              <Text style={[styles.sub, { color: colors.primary }]}>
+                View day-wise details
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tile,
+                isDesktop && styles.tileDesktop,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => router.push("/report/overdue")}
+            >
+              <View
+                style={[
+                  styles.icon,
+                  { backgroundColor: colors.overdue + "10" },
+                ]}
+              >
+                <Feather
+                  name="alert-triangle"
+                  size={20}
+                  color={colors.overdue}
+                />
+              </View>
+              <Text style={[styles.value, { color: colors.foreground }]}>
+                {stats?.overdueCount ?? 0}
+              </Text>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>
+                Overdue Invoices
+              </Text>
+              <Text style={[styles.sub, { color: colors.overdue }]}>
+                View overdue invoices
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tile,
+                isDesktop && styles.tileDesktop,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => router.push("/register" as any)}
+            >
+              <View
+                style={[
+                  styles.icon,
+                  { backgroundColor: colors.primary + "12" },
+                ]}
+              >
+                <Feather name="book-open" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.value, { color: colors.foreground }]}>
+                Register
+              </Text>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>
+                Agency Monthly Ledger
+              </Text>
+              <Text style={[styles.sub, { color: colors.primary }]}>
+                Month-wise details ›
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View
+            style={[
+              styles.healthCard,
+              isDesktop && styles.healthCardDesktop,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.healthHeader}>
+              <View>
+                <Text style={[styles.chartTitle, { color: colors.foreground }]}>
+                  Payment Health
+                </Text>
+                <Text
+                  style={[
+                    styles.healthSubtitle,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
+                  Paid aur baki ka live comparison
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.healthScore,
+                  { backgroundColor: colors.primary + "18" },
+                ]}
+              >
+                <Text
+                  style={[styles.healthScoreText, { color: colors.primary }]}
+                >
+                  {paidPercent}% Paid
+                </Text>
+              </View>
+            </View>
+            <View style={styles.healthMetrics}>
+              <View style={styles.healthMetric}>
+                <View
+                  style={[styles.healthDot, { backgroundColor: colors.paid }]}
+                />
+                <View>
+                  <Text
+                    style={[
+                      styles.healthMetricLabel,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
+                    TOTAL PAID
+                  </Text>
+                  <Text
+                    style={[styles.healthMetricValue, { color: colors.paid }]}
+                  >
+                    {short(totalPaid)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.healthMetric}>
+                <View
+                  style={[
+                    styles.healthDot,
+                    { backgroundColor: colors.overdue },
+                  ]}
+                />
+                <View>
+                  <Text
+                    style={[
+                      styles.healthMetricLabel,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
+                    OUTSTANDING
+                  </Text>
+                  <Text
+                    style={[
+                      styles.healthMetricValue,
+                      { color: colors.overdue },
+                    ]}
+                  >
+                    {short(totalOutstanding)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <View
+              style={[
+                styles.healthTrack,
+                { backgroundColor: colors.overdue + "30" },
+              ]}
+            >
+              <View
+                style={[
+                  styles.healthPaid,
+                  {
+                    backgroundColor: colors.paid,
+                    width: `${paidPercent}%` as any,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.healthLegend}>
+              <Text style={[styles.healthLegendText, { color: colors.paid }]}>
+                {paidPercent}% received
+              </Text>
+              <Text
+                style={[styles.healthLegendText, { color: colors.overdue }]}
+              >
+                {duePercent}% baki
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.chart,
+              isDesktop && styles.chartDesktop,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => goCollection("year")}
+            activeOpacity={0.85}
+          >
+            <View style={styles.chartHeader}>
+              <View>
+                <Text style={[styles.chartTitle, { color: colors.foreground }]}>
+                  6-Month Collection Trend
+                </Text>
+                <Text
+                  style={[
+                    styles.healthSubtitle,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
+                  Monthly payment performance
+                </Text>
+              </View>
+              <Text style={[styles.chartSub, { color: colors.primary }]}>
+                Details ›
+              </Text>
+            </View>
+            <View style={[styles.bars, isDesktop && styles.barsDesktop]}>
+              {monthly.slice(-6).map((m: any, i: number, arr: any[]) => {
+                const max = Math.max(...arr.map((x) => x.amount), 1),
+                  h = Math.max(8, (m.amount / max) * (isDesktop ? 145 : 90));
+                return (
+                  <View key={`${m.year}-${m.month}`} style={styles.barCol}>
+                    <Text
+                      style={[
+                        styles.barVal,
+                        isDesktop && styles.barValDesktop,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      {m.amount ? short(m.amount) : ""}
+                    </Text>
+                    <LinearGradient
+                      colors={[colors.primary, "#6EA8FF"]}
+                      style={[styles.bar, { height: h }]}
+                    />
+                    <Text
+                      style={[
+                        styles.barLabel,
+                        isDesktop && styles.barLabelDesktop,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      {m.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+          {!isDesktop && (
+            <>
+              <Text
+                style={[
+                  styles.quickTitleLabel,
+                  { color: colors.mutedForeground },
+                ]}
+              >
+                QUICK ACTIONS
+              </Text>
+              <View style={styles.quickRow}>
+                <TouchableOpacity
+                  style={[styles.quick, { backgroundColor: colors.primary }]}
+                  onPress={() => router.push("/invoice/add")}
+                >
+                  <Feather name="file-plus" size={20} color="#fff" />
+                  <Text style={styles.quickText}>Add Invoice</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quick, { backgroundColor: colors.paid }]}
+                  onPress={() => router.push("/payment/add")}
+                >
+                  <Feather name="credit-card" size={20} color="#fff" />
+                  <Text style={styles.quickText}>Record Payment</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
 
-const styles=StyleSheet.create({container:{flex:1},scrollContent:{alignItems:"center"},page:{width:"100%"},pageDesktop:{maxWidth:1440,padding:24,gap:18},center:{flex:1,alignItems:"center",justifyContent:"center",padding:28},wakeTitle:{fontSize:18,fontFamily:"Inter_700Bold",marginTop:16},wakeText:{fontSize:12,fontFamily:"Inter_400Regular",textAlign:"center",marginTop:7},retry:{marginTop:18,paddingHorizontal:26,paddingVertical:12,borderRadius:12},retryText:{color:"#fff",fontFamily:"Inter_700Bold",fontSize:13},hero:{paddingHorizontal:20,paddingBottom:28,gap:20},heroDesktop:{borderRadius:22,padding:28,flexDirection:"row",alignItems:"stretch",gap:28},heroTop:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},heroTopDesktop:{flex:1,alignItems:"flex-start"},greeting:{color:"rgba(255,255,255,.75)",fontSize:13,fontFamily:"Inter_400Regular"},user:{color:"#fff",fontSize:22,fontFamily:"Inter_700Bold",marginTop:3},userDesktop:{fontSize:30,marginTop:7},desktopWelcome:{color:"rgba(255,255,255,.72)",fontSize:13,fontFamily:"Inter_400Regular",marginTop:8},logout:{width:42,height:42,borderRadius:12,backgroundColor:"rgba(255,255,255,.16)",alignItems:"center",justifyContent:"center"},outstanding:{backgroundColor:"rgba(255,255,255,.15)",borderWidth:1,borderColor:"rgba(255,255,255,.22)",borderRadius:18,padding:20,gap:10},outstandingDesktop:{flex:1.65,padding:24,justifyContent:"center"},cardTitleRow:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},outLabel:{color:"rgba(255,255,255,.78)",fontFamily:"Inter_600SemiBold",fontSize:12,letterSpacing:.5},outValue:{color:"#fff",fontSize:36,fontFamily:"Inter_700Bold"},outValueDesktop:{fontSize:40},badges:{flexDirection:"row",gap:8},badge:{color:"#fff",backgroundColor:"rgba(255,255,255,.14)",paddingHorizontal:10,paddingVertical:5,borderRadius:20,fontSize:11},filterWrap:{paddingHorizontal:16,paddingTop:16,gap:9},filterWrapDesktop:{paddingHorizontal:0,paddingTop:0},filterTitle:{fontSize:10,fontFamily:"Inter_700Bold",letterSpacing:1},filterChip:{borderWidth:1,borderRadius:20,paddingHorizontal:14,paddingVertical:8},grid:{padding:16,flexDirection:"row",flexWrap:"wrap",gap:10},gridDesktop:{padding:0,gap:14},tile:{width:"48%",flexGrow:1,borderRadius:16,borderWidth:1,padding:15,gap:8,minHeight:150},tileDesktop:{width:"23%",minHeight:172,padding:20},icon:{width:38,height:38,borderRadius:12,alignItems:"center",justifyContent:"center"},value:{fontSize:24,fontFamily:"Inter_700Bold"},label:{fontSize:12,fontFamily:"Inter_500Medium"},sub:{fontSize:10,fontFamily:"Inter_500Medium",marginTop:"auto"},healthCard:{marginHorizontal:16,borderRadius:16,borderWidth:1,padding:16,gap:14},healthCardDesktop:{marginHorizontal:0,padding:24},healthHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},healthSubtitle:{fontSize:10,marginTop:3},healthScore:{paddingHorizontal:11,paddingVertical:7,borderRadius:20},healthScoreText:{fontSize:11,fontFamily:"Inter_700Bold"},healthMetrics:{flexDirection:"row",gap:24},healthMetric:{flex:1,flexDirection:"row",alignItems:"center",gap:9},healthDot:{width:10,height:10,borderRadius:5},healthMetricLabel:{fontSize:9,fontFamily:"Inter_600SemiBold",letterSpacing:.5},healthMetricValue:{fontSize:18,fontFamily:"Inter_700Bold",marginTop:2},healthTrack:{height:14,borderRadius:8,overflow:"hidden"},healthPaid:{height:"100%",borderRadius:8},healthLegend:{flexDirection:"row",justifyContent:"space-between",marginTop:-7},healthLegendText:{fontSize:10,fontFamily:"Inter_600SemiBold"},chart:{marginHorizontal:16,borderRadius:16,borderWidth:1,padding:16},chartDesktop:{marginHorizontal:0,padding:24},chartHeader:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},chartTitle:{fontSize:15,fontFamily:"Inter_700Bold"},chartSub:{fontSize:11,fontFamily:"Inter_600SemiBold"},bars:{height:130,flexDirection:"row",alignItems:"flex-end",gap:7,marginTop:12},barsDesktop:{height:210,gap:18,marginTop:20},barCol:{flex:1,alignItems:"center",justifyContent:"flex-end",height:"100%"},bar:{width:"70%",borderRadius:5},barVal:{fontSize:7,marginBottom:3},barValDesktop:{fontSize:11,marginBottom:7},barLabel:{fontSize:9,marginTop:4},barLabelDesktop:{fontSize:11,marginTop:7},quickTitleLabel:{paddingHorizontal:16,paddingTop:20,paddingBottom:10,fontSize:10,fontFamily:"Inter_700Bold",letterSpacing:1},quickRow:{flexDirection:"row",paddingHorizontal:16,gap:10},quick:{flex:1,borderRadius:14,padding:16,gap:8},quickText:{color:"#fff",fontSize:13,fontFamily:"Inter_700Bold"}});
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  scrollContent: { alignItems: "center" },
+  page: { width: "100%" },
+  pageDesktop: { maxWidth: 1440, padding: 24, gap: 18 },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 28,
+  },
+  wakeTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginTop: 16 },
+  wakeText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    marginTop: 7,
+  },
+  retry: {
+    marginTop: 18,
+    paddingHorizontal: 26,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryText: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 13 },
+  hero: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    gap: 20,
+    borderBottomWidth: 1,
+  },
+  heroDesktop: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 28,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 28,
+  },
+  heroTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  heroTopDesktop: { flex: 1, alignItems: "flex-start" },
+  greeting: {
+    color: "rgba(255,255,255,.75)",
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  user: {
+    color: "#fff",
+    fontSize: 22,
+    fontFamily: "Inter_700Bold",
+    marginTop: 3,
+  },
+  userDesktop: { fontSize: 30, marginTop: 7 },
+  desktopWelcome: {
+    color: "rgba(255,255,255,.72)",
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    marginTop: 8,
+  },
+  logout: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,.16)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outstanding: {
+    backgroundColor: "rgba(255,255,255,.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,.22)",
+    borderRadius: 18,
+    padding: 20,
+    gap: 10,
+  },
+  outstandingDesktop: { flex: 1.65, padding: 24, justifyContent: "center" },
+  cardTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  outHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
+  outIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outLabel: {
+    color: "rgba(255,255,255,.78)",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    letterSpacing: 0.5,
+  },
+  outValue: { color: "#fff", fontSize: 36, fontFamily: "Inter_700Bold" },
+  outValueDesktop: { fontSize: 40 },
+  badges: { flexDirection: "row", gap: 8 },
+  badge: {
+    color: "#fff",
+    backgroundColor: "rgba(255,255,255,.14)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    fontSize: 11,
+  },
+  filterWrap: { paddingHorizontal: 16, paddingTop: 16, gap: 9 },
+  filterWrapDesktop: { paddingHorizontal: 0, paddingTop: 0 },
+  filterTitle: { fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 1 },
+  filterChip: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  grid: { padding: 16, flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  gridDesktop: { padding: 0, gap: 14 },
+  tile: {
+    width: "48%",
+    flexGrow: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 15,
+    gap: 8,
+    minHeight: 150,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  tileDesktop: { width: "23%", minHeight: 172, padding: 20 },
+  icon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  value: { fontSize: 24, fontFamily: "Inter_700Bold" },
+  label: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  sub: { fontSize: 10, fontFamily: "Inter_500Medium", marginTop: "auto" },
+  healthCard: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    gap: 14,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  healthCardDesktop: { marginHorizontal: 0, padding: 24 },
+  healthHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  healthSubtitle: { fontSize: 10, marginTop: 3 },
+  healthScore: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 20 },
+  healthScoreText: { fontSize: 11, fontFamily: "Inter_700Bold" },
+  healthMetrics: { flexDirection: "row", gap: 24 },
+  healthMetric: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9 },
+  healthDot: { width: 10, height: 10, borderRadius: 5 },
+  healthMetricLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.5,
+  },
+  healthMetricValue: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    marginTop: 2,
+  },
+  healthTrack: { height: 14, borderRadius: 8, overflow: "hidden" },
+  healthPaid: { height: "100%", borderRadius: 8 },
+  healthLegend: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: -7,
+  },
+  healthLegendText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  chart: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  chartDesktop: { marginHorizontal: 0, padding: 24 },
+  chartHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  chartTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  chartSub: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  bars: {
+    height: 130,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 7,
+    marginTop: 12,
+  },
+  barsDesktop: { height: 210, gap: 18, marginTop: 20 },
+  barCol: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    height: "100%",
+  },
+  bar: { width: "70%", borderRadius: 5 },
+  barVal: { fontSize: 7, marginBottom: 3 },
+  barValDesktop: { fontSize: 11, marginBottom: 7 },
+  barLabel: { fontSize: 9, marginTop: 4 },
+  barLabelDesktop: { fontSize: 11, marginTop: 7 },
+  quickTitleLabel: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 10,
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+  },
+  quickRow: { flexDirection: "row", paddingHorizontal: 16, gap: 10 },
+  quick: { flex: 1, borderRadius: 14, padding: 16, gap: 8 },
+  quickText: { color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold" },
+});
