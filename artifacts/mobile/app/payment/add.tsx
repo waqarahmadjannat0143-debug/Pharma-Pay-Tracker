@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
-import { formatDateDDMMYY, ddmmyyToISO } from "@/lib/dateFormat";
+import { formatDateDDMMYY, ddmmyyToISO, formatDateInput } from "@/lib/dateFormat";
 import {
   useRecordPayment, useGetCustomers, useGetCustomerInvoices,
   getGetPaymentsQueryKey, getGetDashboardStatsQueryKey,
@@ -46,6 +46,7 @@ export default function AddPaymentScreen() {
   const [amount, setAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [paymentDate, setPaymentDate] = useState(todayDisplay());
+  const [slipNumber, setSlipNumber] = useState("");
   const [notes, setNotes] = useState("");
 
   const filteredCustomers = useMemo(() => {
@@ -95,7 +96,7 @@ export default function AddPaymentScreen() {
     try {
       const result = await mutateAsync({ data: {
         customerId: parseInt(selectedCustomerId), paymentDate: isoDate, amount: numericAmount,
-        paymentMode, notes: notes.trim() || undefined, invoiceIds: selectedInvoiceIds,
+        paymentMode, slipNumber: slipNumber.trim() || undefined, notes: notes.trim() || undefined, invoiceIds: selectedInvoiceIds,
       } as any });
       queryClient.invalidateQueries({ queryKey: getGetPaymentsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
@@ -176,7 +177,7 @@ export default function AddPaymentScreen() {
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Payment Date *</Text>
-          <TextInput value={paymentDate} onChangeText={setPaymentDate} placeholder="DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="numbers-and-punctuation" style={inputStyle} />
+          <TextInput value={paymentDate} onChangeText={value => setPaymentDate(formatDateInput(value))} placeholder="DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" maxLength={8} style={inputStyle} />
         </View>
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Amount (₹) *</Text>
@@ -186,6 +187,10 @@ export default function AddPaymentScreen() {
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Payment Mode *</Text>
           <View style={styles.modesGrid}>{MODES.map(m => { const active = paymentMode === m.key; return <TouchableOpacity key={m.key} style={[styles.modeBtn, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary + "15" : colors.card }]} onPress={() => setPaymentMode(m.key)}><Feather name={m.icon} size={18} color={active ? colors.primary : colors.mutedForeground} /><Text style={[styles.modeBtnText, { color: active ? colors.primary : colors.mutedForeground }]}>{m.label}</Text></TouchableOpacity>; })}</View>
+        </View>
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>Slip / Receipt Number (Optional)</Text>
+          <TextInput value={slipNumber} onChangeText={setSlipNumber} placeholder="e.g. UPI-12345" placeholderTextColor={colors.mutedForeground} style={inputStyle} />
         </View>
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Notes (Optional)</Text>
