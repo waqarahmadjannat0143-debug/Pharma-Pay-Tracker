@@ -22,9 +22,9 @@ router.get("/outstanding", async (req: AuthRequest, res) => {
 
 router.get("/overdue", async (req: AuthRequest, res) => {
   try {
-    const rows = await db.select({ invoiceId: invoicesTable.id, invoiceNumber: invoicesTable.invoiceNumber, customerId: customersTable.id, customerName: customersTable.name, mobile: customersTable.mobile, billAmount: invoicesTable.billAmount, outstandingBalance: invoicesTable.outstandingBalance, dueDate: invoicesTable.dueDate, daysOverdue: sql<number>`(CURRENT_DATE - ${invoicesTable.dueDate}::date)` })
+    const rows = await db.select({ invoiceId: invoicesTable.id, invoiceNumber: invoicesTable.invoiceNumber, customerId: customersTable.id, customerName: customersTable.name, mobile: customersTable.mobile, billAmount: invoicesTable.billAmount, outstandingBalance: invoicesTable.outstandingBalance, dueDate: invoicesTable.dueDate, daysOverdue: sql<number>`((NOW() AT TIME ZONE 'Asia/Kolkata')::date - ${invoicesTable.dueDate}::date)` })
       .from(invoicesTable).innerJoin(customersTable, eq(invoicesTable.customerId, customersTable.id))
-      .where(and(sql`${invoicesTable.outstandingBalance}::numeric > 0`, sql`${invoicesTable.dueDate}::date < CURRENT_DATE`)).orderBy(sql`${invoicesTable.dueDate}::date ASC`);
+      .where(and(sql`${invoicesTable.outstandingBalance}::numeric > 0`, sql`${invoicesTable.dueDate}::date < (NOW() AT TIME ZONE 'Asia/Kolkata')::date`)).orderBy(sql`${invoicesTable.dueDate}::date ASC`);
     res.json(rows.map(r => ({ ...r, billAmount: Number(r.billAmount), outstandingBalance: Number(r.outstandingBalance), daysOverdue: Number(r.daysOverdue) })));
   } catch (err) { req.log?.error({ err }, "Failed overdue"); res.status(500).json({ error: "Failed to fetch report" }); }
 });
@@ -38,7 +38,7 @@ router.get("/aging", async (req: AuthRequest, res) => {
       outstandingBalance: invoicesTable.outstandingBalance,
       customerId: customersTable.id,
       customerName: customersTable.name,
-      daysPastDue: sql<number>`(CURRENT_DATE - ${invoicesTable.dueDate}::date)`,
+      daysPastDue: sql<number>`((NOW() AT TIME ZONE 'Asia/Kolkata')::date - ${invoicesTable.dueDate}::date)`,
     }).from(invoicesTable)
       .innerJoin(customersTable, eq(invoicesTable.customerId, customersTable.id))
       .where(sql`${invoicesTable.outstandingBalance}::numeric > 0`)
