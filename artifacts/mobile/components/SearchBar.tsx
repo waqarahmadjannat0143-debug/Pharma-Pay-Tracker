@@ -9,10 +9,19 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export function SearchBar({ value, onChangeText, placeholder = "Search..." }: SearchBarProps) {
+export function SearchBar({
+  value,
+  onChangeText,
+  placeholder = "Search...",
+}: SearchBarProps) {
   const colors = useColors();
   return (
-    <View style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
       <Feather name="search" size={16} color={colors.mutedForeground} />
       <TextInput
         value={value}
@@ -24,7 +33,10 @@ export function SearchBar({ value, onChangeText, placeholder = "Search..." }: Se
         autoCapitalize="none"
       />
       {value.length > 0 && (
-        <TouchableOpacity onPress={() => onChangeText("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          onPress={() => onChangeText("")}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <Feather name="x" size={16} color={colors.mutedForeground} />
         </TouchableOpacity>
       )}
@@ -36,10 +48,10 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 8,
     marginHorizontal: 16,
     marginVertical: 8,

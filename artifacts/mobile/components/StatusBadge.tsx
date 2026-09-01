@@ -23,20 +23,22 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     pending: colors.pending,
     overdue: colors.overdue,
   };
-  const bg = (colorMap[status] || colors.mutedForeground) + "20";
+  const bg = (colorMap[status] || colors.mutedForeground) + "14";
   const fg = colorMap[status] || colors.mutedForeground;
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
-      <Text style={[styles.text, { color: fg }]}>{labels[status] || status}</Text>
+      <Text style={[styles.text, { color: fg }]}>
+        {labels[status] || status}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
     alignSelf: "flex-start",
   },
   text: {

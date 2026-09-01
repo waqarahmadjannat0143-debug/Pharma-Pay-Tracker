@@ -10,16 +10,51 @@ interface StatsCardProps {
   icon?: React.ReactNode;
 }
 
-export function StatsCard({ title, value, subtitle, color, icon }: StatsCardProps) {
+export function StatsCard({
+  title,
+  value,
+  subtitle,
+  color,
+  icon,
+}: StatsCardProps) {
   const colors = useColors();
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
       <View style={styles.header}>
-        {icon && <View style={[styles.iconWrap, { backgroundColor: (color || colors.primary) + "20" }]}>{icon}</View>}
-        <Text style={[styles.title, { color: colors.mutedForeground }]} numberOfLines={2}>{title}</Text>
+        {icon && (
+          <View
+            style={[
+              styles.iconWrap,
+              { backgroundColor: (color || colors.primary) + "20" },
+            ]}
+          >
+            {icon}
+          </View>
+        )}
+        <Text
+          style={[styles.title, { color: colors.mutedForeground }]}
+          numberOfLines={2}
+        >
+          {title}
+        </Text>
       </View>
-      <Text style={[styles.value, { color: color || colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-      {subtitle && <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>}
+      <Text
+        style={[styles.value, { color: color || colors.primary }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {value}
+      </Text>
+      {subtitle && (
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+          {subtitle}
+        </Text>
+      )}
     </View>
   );
 }
@@ -28,10 +63,15 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     borderRadius: 12,
-    padding: 14,
+    padding: 18,
     borderWidth: 1,
     gap: 6,
-    minHeight: 100,
+    minHeight: 112,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   header: {
     flexDirection: "row",
@@ -41,7 +81,7 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
