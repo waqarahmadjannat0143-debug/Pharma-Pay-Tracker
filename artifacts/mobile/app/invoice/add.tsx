@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
-import { formatDateDDMMYY, ddmmyyToISO } from "@/lib/dateFormat";
+import { formatDateDDMMYY, ddmmyyToISO, formatDateInput, formatLocalISODate } from "@/lib/dateFormat";
 import { useCreateInvoice, useGetCustomers, getGetInvoicesQueryKey, getGetCustomerInvoicesQueryKey } from "@workspace/api-client-react";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
@@ -34,7 +34,7 @@ export default function AddInvoiceScreen() {
     if (!invoiceIso) return "";
     const d = new Date(invoiceIso + "T00:00:00");
     d.setDate(d.getDate() + parseInt(dueDays || "30"));
-    return d.toISOString().split("T")[0];
+    return formatLocalISODate(d);
   })();
 
   const handleSave = async () => {
@@ -47,11 +47,21 @@ export default function AddInvoiceScreen() {
       return;
     }
     try {
+      const numericBillAmount = Number(billAmount);
+      const numericDueDays = Number(dueDays);
+      if (!Number.isFinite(numericBillAmount) || numericBillAmount <= 0) {
+        Alert.alert("Validation", "Enter a valid bill amount");
+        return;
+      }
+      if (!Number.isInteger(numericDueDays) || numericDueDays < 0) {
+        Alert.alert("Validation", "Due days must be zero or more");
+        return;
+      }
       await mutateAsync({ data: {
         customerId: parseInt(selectedCustomerId),
         invoiceNumber: invoiceNumber.trim(),
         invoiceDate: invoiceIso,
-        billAmount: parseFloat(billAmount),
+        billAmount: numericBillAmount,
         dueDate,
       } as any});
       queryClient.invalidateQueries({ queryKey: getGetInvoicesQueryKey() });
@@ -93,7 +103,7 @@ export default function AddInvoiceScreen() {
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Invoice Date *</Text>
-          <TextInput value={invoiceDate} onChangeText={setInvoiceDate} placeholder="DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="numbers-and-punctuation" style={inputStyle} />
+          <TextInput value={invoiceDate} onChangeText={value => setInvoiceDate(formatDateInput(value))} placeholder="DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" maxLength={8} style={inputStyle} />
         </View>
 
         <View style={styles.field}>
