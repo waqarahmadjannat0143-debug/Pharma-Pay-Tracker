@@ -5,18 +5,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { getToken } from "@/lib/apiToken";
-import { formatDateDDMMYY, ddmmyyToISO } from "@/lib/dateFormat";
+import { formatDateDDMMYY, ddmmyyToISO, formatDateInput, formatLocalISODate } from "@/lib/dateFormat";
 import { EmptyState } from "@/components/EmptyState";
 import { useGetMonthlyCollectionReport } from "@workspace/api-client-react";
 
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN || "pharma-pay-tracker.onrender.com"}`;
 
 function formatCurrency(amount: number) { return "₹" + amount.toLocaleString("en-IN", { minimumFractionDigits: 0 }); }
-function iso(d: Date) { return d.toISOString().split("T")[0]; }
-function formatDateInput(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 6);
-  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 6)].filter(Boolean).join("-");
-}
+const iso = formatLocalISODate;
 
 type Preset = "today" | "week" | "previousMonth" | "month" | "year" | "custom" | "all";
 type DailyCollection = { date: string; amount: number; count: number };
