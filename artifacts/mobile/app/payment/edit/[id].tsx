@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { getToken } from "@/lib/apiToken";
+import { formatDateInput } from "@/lib/dateFormat";
 import { getGetPaymentsQueryKey, getGetDashboardStatsQueryKey, getGetInvoicesQueryKey, getGetCustomersQueryKey } from "@workspace/api-client-react";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
@@ -40,6 +41,7 @@ export default function EditPaymentScreen() {
   const [date, setDate] = useState("");
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState("cash");
+  const [slipNumber, setSlipNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [bills, setBills] = useState<string[]>([]);
   const domain = process.env.EXPO_PUBLIC_DOMAIN || "pharma-pay-tracker.onrender.com";
@@ -54,6 +56,7 @@ export default function EditPaymentScreen() {
         setDate(displayDate(body.paymentDate));
         setAmount(String(body.amount));
         setMode(body.paymentMode || "cash");
+        setSlipNumber(body.slipNumber || "");
         setNotes(body.notes || "");
         setBills((body.allocations || []).map((a: any) => `#${a.invoiceNumber}`));
       } catch (e: any) { Alert.alert("Error", e.message || "Failed to load payment", [{ text: "OK", onPress: () => router.back() }]); }
@@ -71,7 +74,7 @@ export default function EditPaymentScreen() {
       const res = await fetch(`https://${domain}/api/payments/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ paymentDate: isoDate, amount: numericAmount, paymentMode: mode, notes: notes.trim() || null }),
+        body: JSON.stringify({ paymentDate: isoDate, amount: numericAmount, paymentMode: mode, slipNumber: slipNumber.trim() || null, notes: notes.trim() || null }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Failed to edit payment");
@@ -98,7 +101,7 @@ export default function EditPaymentScreen() {
           <Text style={[styles.warning, { color: colors.warning }]}>Amount edit karne par payment inhi linked bills me dobara adjust hoga.</Text>
         </View>
 
-        <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>Payment Date</Text><TextInput value={date} onChangeText={setDate} placeholder="DD-MM-YY" placeholderTextColor={colors.mutedForeground} style={inputStyle} keyboardType="numbers-and-punctuation" /></View>
+        <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>Payment Date</Text><TextInput value={date} onChangeText={value => setDate(formatDateInput(value))} placeholder="DD-MM-YY" placeholderTextColor={colors.mutedForeground} style={inputStyle} keyboardType="number-pad" maxLength={8} /></View>
         <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>Amount (₹)</Text><TextInput value={amount} onChangeText={setAmount} placeholder="0.00" placeholderTextColor={colors.mutedForeground} style={inputStyle} keyboardType="numeric" /></View>
 
         <View style={styles.field}>
@@ -106,6 +109,7 @@ export default function EditPaymentScreen() {
           <View style={styles.modes}>{MODES.map(m => <TouchableOpacity key={m.key} onPress={() => setMode(m.key)} style={[styles.modeBtn, { borderColor: mode === m.key ? colors.primary : colors.border, backgroundColor: mode === m.key ? colors.primary + "15" : colors.card }]}><Feather name={m.icon} size={16} color={mode === m.key ? colors.primary : colors.mutedForeground} /><Text style={{ color: mode === m.key ? colors.primary : colors.mutedForeground, fontFamily: "Inter_500Medium", fontSize: 12 }}>{m.label}</Text></TouchableOpacity>)}</View>
         </View>
 
+        <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>Slip / Receipt Number</Text><TextInput value={slipNumber} onChangeText={setSlipNumber} placeholder="Optional" placeholderTextColor={colors.mutedForeground} style={inputStyle} /></View>
         <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>Notes</Text><TextInput value={notes} onChangeText={setNotes} multiline style={[inputStyle, { height: 80, textAlignVertical: "top" }]} /></View>
 
         <TouchableOpacity style={[styles.save, { backgroundColor: colors.primary }, saving && { opacity: .6 }]} onPress={save} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save Changes</Text>}</TouchableOpacity>

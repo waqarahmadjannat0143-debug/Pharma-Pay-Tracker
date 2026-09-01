@@ -15,6 +15,7 @@ import { useGetPayments, useGetCustomers, getGetPaymentsQueryKey, getGetDashboar
 import { generateReceiptPdf } from "@/lib/generatePdf";
 import { shareReceiptOnWhatsApp } from "@/lib/shareWhatsApp";
 import { getToken } from "@/lib/apiToken";
+import { formatLocalISODate } from "@/lib/dateFormat";
 import type { Payment } from "@workspace/api-client-react";
 
 const MODE_FILTERS = ["all", "cash", "upi", "bank_transfer", "cheque"] as const;
@@ -29,7 +30,7 @@ function fmtDate(value: string) {
   const [y, m, d] = value.split("-");
   return y && m && d ? `${d}-${m}-${y.slice(-2)}` : value;
 }
-function iso(d: Date) { return d.toISOString().slice(0, 10); }
+const iso = formatLocalISODate;
 
 export default function PaymentsScreen() {
   const colors = useColors();

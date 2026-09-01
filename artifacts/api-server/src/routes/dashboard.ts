@@ -11,11 +11,11 @@ async function getStats() {
     SELECT
       COALESCE((SELECT SUM(outstanding_balance::numeric) FROM invoices WHERE outstanding_balance::numeric > 0), 0) AS "totalOutstanding",
       COALESCE((SELECT SUM(amount::numeric) FROM payments), 0) AS "totalPaid",
-      COALESCE((SELECT SUM(amount::numeric) FROM payments WHERE payment_date::date = CURRENT_DATE), 0) AS "todayCollection",
-      COALESCE((SELECT SUM(amount::numeric) FROM payments WHERE payment_date::date >= DATE_TRUNC('month', CURRENT_DATE)::date AND payment_date::date <= CURRENT_DATE), 0) AS "thisMonthCollection",
+      COALESCE((SELECT SUM(amount::numeric) FROM payments WHERE payment_date::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date), 0) AS "todayCollection",
+      COALESCE((SELECT SUM(amount::numeric) FROM payments WHERE payment_date::date >= DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Kolkata'))::date AND payment_date::date <= (NOW() AT TIME ZONE 'Asia/Kolkata')::date), 0) AS "thisMonthCollection",
       (SELECT COUNT(*) FROM customers) AS "totalCustomers",
-      (SELECT COUNT(*) FROM invoices WHERE status = 'overdue' AND outstanding_balance::numeric > 0) AS "overdueCount",
-      (SELECT COUNT(*) FROM invoices WHERE due_date::date >= CURRENT_DATE AND due_date::date <= CURRENT_DATE + INTERVAL '3 days' AND outstanding_balance::numeric > 0) AS "dueIn3DaysCount"
+      (SELECT COUNT(*) FROM invoices WHERE due_date::date < (NOW() AT TIME ZONE 'Asia/Kolkata')::date AND outstanding_balance::numeric > 0) AS "overdueCount",
+      (SELECT COUNT(*) FROM invoices WHERE due_date::date >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date AND due_date::date <= (NOW() AT TIME ZONE 'Asia/Kolkata')::date + INTERVAL '3 days' AND outstanding_balance::numeric > 0) AS "dueIn3DaysCount"
   `);
   const r = rows.rows[0] as any;
   return {

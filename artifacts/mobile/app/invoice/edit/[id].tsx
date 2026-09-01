@@ -1,12 +1,149 @@
-import React,{useEffect,useState}from"react";
-import{ActivityIndicator,Alert,StyleSheet,Text,TextInput,TouchableOpacity,View}from"react-native";
-import{useLocalSearchParams,useRouter}from"expo-router";
-import{useQueryClient}from"@tanstack/react-query";
-import{useColors}from"@/hooks/useColors";
-import{formatDateDDMMYY,ddmmyyToISO}from"@/lib/dateFormat";
-import{medpayApi}from"@/lib/medpayApi";
-import{AgencyPicker}from"@/components/AgencyPicker";
-import{KeyboardAwareScrollViewCompat}from"@/components/KeyboardAwareScrollViewCompat";
-import{useGetInvoice}from"@workspace/api-client-react";
-export default function EditInvoice(){const{id}=useLocalSearchParams<{id:string}>(),invoiceId=Number(id),colors=useColors(),router=useRouter(),qc=useQueryClient(),q=useGetInvoice(invoiceId);const[num,setNum]=useState(""),[date,setDate]=useState(""),[amount,setAmount]=useState(""),[due,setDue]=useState(""),[agencyId,setAgencyId]=useState<number>(),[agencyName,setAgencyName]=useState(""),[saving,setSaving]=useState(false);useEffect(()=>{const x=q.data as any;if(x){setNum(x.invoiceNumber);setDate(formatDateDDMMYY(x.invoiceDate));setAmount(String(x.billAmount));setDue(formatDateDDMMYY(x.dueDate));setAgencyId(x.agencyId||undefined);setAgencyName(x.agencyName||"")}},[q.data]);const save=async()=>{const invoiceDate=ddmmyyToISO(date),dueDate=ddmmyyToISO(due),billAmount=Number(amount);if(!agencyId||!num.trim()||!invoiceDate||!dueDate||billAmount<=0)return Alert.alert("Validation","Agency select karein aur valid bill details enter karein.");setSaving(true);try{await medpayApi(`/api/invoices/${invoiceId}`,{method:"PATCH",body:JSON.stringify({agencyId,invoiceNumber:num.trim(),invoiceDate,dueDate,billAmount})});await qc.invalidateQueries();Alert.alert("Updated","Bill aur agency update ho gaye.",[{text:"OK",onPress:()=>router.back()}])}catch(e:any){Alert.alert("Error",e.message)}finally{setSaving(false)}};if(q.isLoading)return <View style={s.center}><ActivityIndicator color={colors.primary}/></View>;const input=[s.input,{backgroundColor:colors.card,borderColor:colors.border,color:colors.foreground}];return <View style={[s.page,{backgroundColor:colors.background}]}><KeyboardAwareScrollViewCompat contentContainerStyle={s.content}><Text style={[s.note,{color:colors.mutedForeground}]}>Purane unassigned bills ko yahan correct Agency Master se link kar sakte hain.</Text><AgencyPicker value={agencyId} name={agencyName} onChange={a=>{setAgencyId(a.id);setAgencyName(a.name)}}/><Text style={[s.label,{color:colors.mutedForeground}]}>Bill Number</Text><TextInput style={input} value={num} onChangeText={setNum}/><Text style={[s.label,{color:colors.mutedForeground}]}>Bill Date (DD-MM-YY)</Text><TextInput style={input} value={date} onChangeText={setDate}/><Text style={[s.label,{color:colors.mutedForeground}]}>Bill Amount (₹)</Text><TextInput style={input} value={amount} onChangeText={setAmount} keyboardType="numeric"/><Text style={[s.label,{color:colors.mutedForeground}]}>Due Date (DD-MM-YY)</Text><TextInput style={input} value={due} onChangeText={setDue}/><TouchableOpacity onPress={save} disabled={saving} style={[s.btn,{backgroundColor:colors.primary}]}>{saving?<ActivityIndicator color="#fff"/>:<Text style={s.btnText}>Save Changes</Text>}</TouchableOpacity></KeyboardAwareScrollViewCompat></View>}
-const s=StyleSheet.create({page:{flex:1},center:{flex:1,alignItems:"center",justifyContent:"center"},content:{padding:20,gap:8},note:{fontSize:12,lineHeight:18,marginBottom:8},label:{fontSize:12,fontFamily:"Inter_500Medium",marginTop:6},input:{borderWidth:1,borderRadius:10,padding:12},btn:{marginTop:16,padding:14,borderRadius:12,alignItems:"center"},btnText:{color:"#fff",fontFamily:"Inter_700Bold"}});
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useColors } from "@/hooks/useColors";
+import { formatDateDDMMYY, ddmmyyToISO, formatDateInput } from "@/lib/dateFormat";
+import { medpayApi } from "@/lib/medpayApi";
+import { AgencyPicker } from "@/components/AgencyPicker";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { useGetInvoice } from "@workspace/api-client-react";
+export default function EditInvoice() {
+  const { id } = useLocalSearchParams<{ id: string }>(),
+    invoiceId = Number(id),
+    colors = useColors(),
+    router = useRouter(),
+    qc = useQueryClient(),
+    q = useGetInvoice(invoiceId);
+  const [num, setNum] = useState(""),
+    [date, setDate] = useState(""),
+    [amount, setAmount] = useState(""),
+    [due, setDue] = useState(""),
+    [agencyId, setAgencyId] = useState<number>(),
+    [agencyName, setAgencyName] = useState(""),
+    [saving, setSaving] = useState(false);
+  useEffect(() => {
+    const x = q.data as any;
+    if (x) {
+      setNum(x.invoiceNumber);
+      setDate(formatDateDDMMYY(x.invoiceDate));
+      setAmount(String(x.billAmount));
+      setDue(formatDateDDMMYY(x.dueDate));
+      setAgencyId(x.agencyId || undefined);
+      setAgencyName(x.agencyName || "");
+    }
+  }, [q.data]);
+  const save = async () => {
+    const invoiceDate = ddmmyyToISO(date),
+      dueDate = ddmmyyToISO(due),
+      billAmount = Number(amount);
+    if (!num.trim() || !invoiceDate || !dueDate || !Number.isFinite(billAmount) || billAmount <= 0)
+      return Alert.alert(
+        "Validation",
+        "Valid bill details enter karein.",
+      );
+    setSaving(true);
+    try {
+      await medpayApi(`/api/invoices/${invoiceId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          agencyId,
+          invoiceNumber: num.trim(),
+          invoiceDate,
+          dueDate,
+          billAmount,
+        }),
+      });
+      await qc.invalidateQueries();
+      Alert.alert("Updated", "Bill aur agency update ho gaye.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  if (q.isLoading)
+    return (
+      <View style={s.center}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  const input = [
+    s.input,
+    {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      color: colors.foreground,
+    },
+  ];
+  return (
+    <View style={[s.page, { backgroundColor: colors.background }]}>
+      <KeyboardAwareScrollViewCompat contentContainerStyle={s.content}>
+        <Text style={[s.note, { color: colors.mutedForeground }]}>
+          Purane unassigned bills ko yahan correct Agency Master se link kar
+          sakte hain.
+        </Text>
+        <AgencyPicker
+          value={agencyId}
+          name={agencyName}
+          onChange={(a) => {
+            setAgencyId(a.id);
+            setAgencyName(a.name);
+          }}
+        />
+        <Text style={[s.label, { color: colors.mutedForeground }]}>
+          Bill Number
+        </Text>
+        <TextInput style={input} value={num} onChangeText={setNum} />
+        <Text style={[s.label, { color: colors.mutedForeground }]}>
+          Bill Date (DD-MM-YY)
+        </Text>
+          <TextInput style={input} value={date} onChangeText={(value) => setDate(formatDateInput(value))} keyboardType="number-pad" maxLength={8} />
+        <Text style={[s.label, { color: colors.mutedForeground }]}>
+          Bill Amount (₹)
+        </Text>
+        <TextInput
+          style={input}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+        />
+        <Text style={[s.label, { color: colors.mutedForeground }]}>
+          Due Date (DD-MM-YY)
+        </Text>
+          <TextInput style={input} value={due} onChangeText={(value) => setDue(formatDateInput(value))} keyboardType="number-pad" maxLength={8} />
+        <TouchableOpacity
+          onPress={save}
+          disabled={saving}
+          style={[s.btn, { backgroundColor: colors.primary }]}
+        >
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={s.btnText}>Save Changes</Text>
+          )}
+        </TouchableOpacity>
+      </KeyboardAwareScrollViewCompat>
+    </View>
+  );
+}
+const s = StyleSheet.create({
+  page: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  content: { padding: 20, gap: 8 },
+  note: { fontSize: 12, lineHeight: 18, marginBottom: 8 },
+  label: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 6 },
+  input: { borderWidth: 1, borderRadius: 10, padding: 12 },
+  btn: { marginTop: 16, padding: 14, borderRadius: 12, alignItems: "center" },
+  btnText: { color: "#fff", fontFamily: "Inter_700Bold" },
+});
