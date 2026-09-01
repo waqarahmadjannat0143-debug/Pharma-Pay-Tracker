@@ -8,11 +8,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { getToken } from "@/lib/apiToken";
+import { formatLocalISODate } from "@/lib/dateFormat";
 
 const API_BASE=`https://${process.env.EXPO_PUBLIC_DOMAIN||"pharma-pay-tracker.onrender.com"}`;
 function fmt(n:number){return "₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:0})}
 function short(n:number){if(n>=100000)return "₹"+(n/100000).toFixed(1)+"L";if(n>=1000)return "₹"+(n/1000).toFixed(1)+"K";return fmt(n)}
-function iso(d:Date){return d.toISOString().split("T")[0]}
+const iso=formatLocalISODate;
 function greeting(){const h=new Date().getHours();return h<12?"Good morning":h<17?"Good afternoon":"Good evening"}
 type Period="today"|"week"|"month"|"year";
 
