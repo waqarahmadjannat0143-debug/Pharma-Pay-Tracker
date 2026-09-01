@@ -22,6 +22,7 @@ export default function TabLayout() {
           screenOptions={{
             tabBarActiveTintColor: colors.primary,
             tabBarInactiveTintColor: colors.mutedForeground,
+            tabBarActiveBackgroundColor: colors.primary + "0D",
             headerShown: false,
             tabBarStyle: isDesktop
               ? { display: "none" }
@@ -30,10 +31,14 @@ export default function TabLayout() {
                   backgroundColor: isIOS ? "transparent" : colors.tabBar,
                   borderTopWidth: 1,
                   borderTopColor: colors.border,
-                  elevation: 0,
-                  height: 60,
-                  paddingBottom: 8,
+                  elevation: 12,
+                  shadowColor: colors.primary,
+                  shadowOpacity: 0.08,
+                  shadowRadius: 12,
+                  height: 66,
+                  paddingBottom: 9,
                 },
+            tabBarItemStyle: isDesktop ? undefined : { borderRadius: 14, marginHorizontal: 2, marginVertical: 4 },
             tabBarBackground: () =>
               !isDesktop && isIOS ? (
                 <BlurView
