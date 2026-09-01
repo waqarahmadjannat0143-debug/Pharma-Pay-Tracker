@@ -6,9 +6,15 @@ import { requireAuth, AuthRequest } from "../middlewares/authMiddleware";
 const router = Router();
 router.use(requireAuth as any);
 
+function indiaToday() {
+  const parts = new Intl.DateTimeFormat("en", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 function statusForBalance(balance: number, billAmount: number, dueDate: string) {
   if (balance <= 0.001) return "paid";
-  const today = new Date().toISOString().slice(0, 10);
+  const today = indiaToday();
   if (dueDate < today) return "overdue";
   if (balance < billAmount - 0.001) return "partial";
   return "pending";
@@ -22,7 +28,7 @@ router.get("/", async (req: AuthRequest, res) => {
     if (fromDate) conditions.push(gte(paymentsTable.paymentDate, fromDate as string));
     if (toDate) conditions.push(lte(paymentsTable.paymentDate, toDate as string));
     if (paymentMode) conditions.push(eq(paymentsTable.paymentMode, paymentMode as string));
-    const rows = await db.select({ id: paymentsTable.id, customerId: paymentsTable.customerId, customerName: customersTable.name, paymentDate: paymentsTable.paymentDate, amount: paymentsTable.amount, paymentMode: paymentsTable.paymentMode, notes: paymentsTable.notes, createdAt: paymentsTable.createdAt }).from(paymentsTable).innerJoin(customersTable, eq(paymentsTable.customerId, customersTable.id)).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(paymentsTable.paymentDate), desc(paymentsTable.id));
+    const rows = await db.select({ id: paymentsTable.id, customerId: paymentsTable.customerId, customerName: customersTable.name, paymentDate: paymentsTable.paymentDate, amount: paymentsTable.amount, paymentMode: paymentsTable.paymentMode, slipNumber: paymentsTable.slipNumber, notes: paymentsTable.notes, createdAt: paymentsTable.createdAt }).from(paymentsTable).innerJoin(customersTable, eq(paymentsTable.customerId, customersTable.id)).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(paymentsTable.paymentDate), desc(paymentsTable.id));
     const result = await Promise.all(rows.map(async row => {
       const allocations = await db.select({ invoiceId: paymentAllocationsTable.invoiceId, amount: paymentAllocationsTable.amount, invoiceNumber: invoicesTable.invoiceNumber }).from(paymentAllocationsTable).innerJoin(invoicesTable, eq(paymentAllocationsTable.invoiceId, invoicesTable.id)).where(eq(paymentAllocationsTable.paymentId, row.id));
       return { ...row, amount: Number(row.amount), allocations: allocations.map(a => ({ ...a, amount: Number(a.amount) })) };
@@ -58,7 +64,7 @@ router.post("/", async (req: AuthRequest, res) => {
 
 router.get("/:id", async (req: AuthRequest, res) => {
   try {
-    const id=Number(req.params.id); const [row]=await db.select({id:paymentsTable.id,customerId:paymentsTable.customerId,customerName:customersTable.name,paymentDate:paymentsTable.paymentDate,amount:paymentsTable.amount,paymentMode:paymentsTable.paymentMode,notes:paymentsTable.notes,createdAt:paymentsTable.createdAt}).from(paymentsTable).innerJoin(customersTable,eq(paymentsTable.customerId,customersTable.id)).where(eq(paymentsTable.id,id));
+    const id=Number(req.params.id); const [row]=await db.select({id:paymentsTable.id,customerId:paymentsTable.customerId,customerName:customersTable.name,paymentDate:paymentsTable.paymentDate,amount:paymentsTable.amount,paymentMode:paymentsTable.paymentMode,slipNumber:paymentsTable.slipNumber,notes:paymentsTable.notes,createdAt:paymentsTable.createdAt}).from(paymentsTable).innerJoin(customersTable,eq(paymentsTable.customerId,customersTable.id)).where(eq(paymentsTable.id,id));
     if(!row){res.status(404).json({error:"Payment not found"});return;}
     const allocations=await db.select({invoiceId:paymentAllocationsTable.invoiceId,amount:paymentAllocationsTable.amount,invoiceNumber:invoicesTable.invoiceNumber}).from(paymentAllocationsTable).innerJoin(invoicesTable,eq(paymentAllocationsTable.invoiceId,invoicesTable.id)).where(eq(paymentAllocationsTable.paymentId,id));
     res.json({...row,amount:Number(row.amount),allocations:allocations.map(a=>({...a,amount:Number(a.amount)}))});
@@ -67,7 +73,7 @@ router.get("/:id", async (req: AuthRequest, res) => {
 
 router.put("/:id", async (req: AuthRequest, res) => {
   try {
-    const id=Number(req.params.id); const {paymentDate,amount,paymentMode,notes}=req.body; const numericAmount=Number(amount);
+    const id=Number(req.params.id); const {paymentDate,amount,paymentMode,slipNumber,notes}=req.body; const numericAmount=Number(amount);
     if(!Number.isInteger(id)||!paymentDate||!paymentMode||!Number.isFinite(numericAmount)||numericAmount<=0){res.status(400).json({error:"Invalid payment data"});return;}
     const result=await db.transaction(async tx=>{
       const [payment]=await tx.select().from(paymentsTable).where(eq(paymentsTable.id,id));
@@ -89,7 +95,7 @@ router.put("/:id", async (req: AuthRequest, res) => {
       await tx.delete(paymentAllocationsTable).where(eq(paymentAllocationsTable.paymentId,id));
       let remaining=numericAmount;
       for(const invoiceId of ids){if(remaining<=.001)break;const invoice=map.get(invoiceId)!;const start=restored.get(invoiceId)||0;const allocated=Math.min(remaining,start);const bal=start-allocated;await tx.update(invoicesTable).set({outstandingBalance:Math.max(0,bal).toFixed(2),status:statusForBalance(bal,Number(invoice.billAmount),invoice.dueDate)}).where(eq(invoicesTable.id,invoiceId));await tx.insert(paymentAllocationsTable).values({paymentId:id,invoiceId,amount:allocated.toFixed(2)});remaining-=allocated;}
-      const [updated]=await tx.update(paymentsTable).set({paymentDate,amount:numericAmount.toFixed(2),paymentMode,notes:notes||null,updatedAt:new Date()}).where(eq(paymentsTable.id,id)).returning();
+      const [updated]=await tx.update(paymentsTable).set({paymentDate,amount:numericAmount.toFixed(2),paymentMode,slipNumber:slipNumber?.trim()||null,notes:notes||null,updatedAt:new Date()}).where(eq(paymentsTable.id,id)).returning();
       return updated;
     });
     res.json({...result,amount:Number(result.amount)});
