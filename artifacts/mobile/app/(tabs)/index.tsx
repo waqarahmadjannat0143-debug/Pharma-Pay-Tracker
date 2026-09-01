@@ -138,6 +138,611 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
     );
+  if (isDesktop) {
+    const recentRows = periodRows.slice(0, 5);
+    const maxMonthly = Math.max(
+      ...monthly.slice(-6).map((m: any) => Number(m.amount || 0)),
+      1,
+    );
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+          }
+          contentContainerStyle={styles.desktopShell}
+        >
+          <View style={styles.desktopHeader}>
+            <View>
+              <Text
+                style={[
+                  styles.desktopEyebrow,
+                  { color: colors.mutedForeground },
+                ]}
+              >
+                PAYMENT OVERVIEW
+              </Text>
+              <Text
+                style={[styles.desktopPageTitle, { color: colors.foreground }]}
+              >
+                Good {greeting().replace("Good ", "").toLowerCase()},{" "}
+                {username || "admin"}
+              </Text>
+            </View>
+            <View style={styles.desktopHeaderActions}>
+              <TouchableOpacity
+                style={[
+                  styles.headerActionBtn,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+                onPress={() => refetch()}
+              >
+                <Feather
+                  name="refresh-cw"
+                  size={16}
+                  color={colors.mutedForeground}
+                />
+              </TouchableOpacity>
+              <View
+                style={[
+                  styles.desktopProfile,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.profileAvatar,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Text style={styles.profileAvatarText}>
+                    {(username || "A")[0].toUpperCase()}
+                  </Text>
+                </View>
+                <View>
+                  <Text
+                    style={[styles.profileName, { color: colors.foreground }]}
+                  >
+                    {username || "admin"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.profileRole,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
+                    Administrator
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={logout}>
+                  <Feather
+                    name="log-out"
+                    size={16}
+                    color={colors.mutedForeground}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.desktopFilterRow}>
+            <Text
+              style={[
+                styles.desktopSectionLabel,
+                { color: colors.mutedForeground },
+              ]}
+            >
+              OVERVIEW PERIOD
+            </Text>
+            <View style={styles.desktopPeriodGroup}>
+              {periods.map((p) => {
+                const active = p.key === period;
+                return (
+                  <TouchableOpacity
+                    key={p.key}
+                    onPress={() => setPeriod(p.key)}
+                    style={[
+                      styles.desktopPeriodBtn,
+                      {
+                        backgroundColor: active ? colors.primary : colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.desktopPeriodText,
+                        { color: active ? "#FFFFFF" : colors.mutedForeground },
+                      ]}
+                    >
+                      {p.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.balanceRow}>
+            <TouchableOpacity
+              style={[
+                styles.balanceCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => router.push("/report/outstanding")}
+            >
+              <View style={styles.balanceTop}>
+                <View>
+                  <Text
+                    style={[
+                      styles.balanceLabel,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
+                    TOTAL OUTSTANDING
+                  </Text>
+                  <Text
+                    style={[styles.balanceValue, { color: colors.foreground }]}
+                  >
+                    {fmt(totalOutstanding)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.balanceIcon,
+                    { backgroundColor: colors.overdue + "10" },
+                  ]}
+                >
+                  <Feather
+                    name="arrow-up-right"
+                    size={22}
+                    color={colors.overdue}
+                  />
+                </View>
+              </View>
+              <View style={styles.balanceMeta}>
+                <Text
+                  style={[styles.balanceMetaText, { color: colors.overdue }]}
+                >
+                  {stats?.overdueCount ?? 0} overdue invoices
+                </Text>
+                <Text style={[styles.balanceLink, { color: colors.primary }]}>
+                  View report →
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.balanceCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => goCollection(period)}
+            >
+              <View style={styles.balanceTop}>
+                <View>
+                  <Text
+                    style={[
+                      styles.balanceLabel,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
+                    TOTAL COLLECTION
+                  </Text>
+                  <Text
+                    style={[styles.balanceValue, { color: colors.foreground }]}
+                  >
+                    {fmt(periodCollection)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.balanceIcon,
+                    { backgroundColor: colors.info + "12" },
+                  ]}
+                >
+                  <Feather
+                    name="arrow-down-left"
+                    size={22}
+                    color={colors.info}
+                  />
+                </View>
+              </View>
+              <View style={styles.balanceMeta}>
+                <Text style={[styles.balanceMetaText, { color: colors.info }]}>
+                  {periodPayments} payments in selected period
+                </Text>
+                <Text style={[styles.balanceLink, { color: colors.primary }]}>
+                  View report →
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.desktopMainGrid}>
+            <View style={styles.desktopMainColumn}>
+              <View style={styles.desktopMidRow}>
+                <View
+                  style={[
+                    styles.panel,
+                    styles.schedulePanel,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <View style={styles.panelHeader}>
+                    <View>
+                      <Text
+                        style={[
+                          styles.panelTitle,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        Recent Collections
+                      </Text>
+                      <Text
+                        style={[
+                          styles.panelSubtitle,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        Selected period activity
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => goCollection(period)}>
+                      <Text
+                        style={[styles.panelLink, { color: colors.primary }]}
+                      >
+                        View all
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {recentRows.length ? (
+                    recentRows.map((row: any, i: number) => (
+                      <View
+                        key={`${row.date}-${i}`}
+                        style={[
+                          styles.scheduleRow,
+                          i < recentRows.length - 1 && {
+                            borderBottomColor: colors.border,
+                            borderBottomWidth: 1,
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.scheduleDateIcon,
+                            { backgroundColor: colors.primary + "10" },
+                          ]}
+                        >
+                          <Feather
+                            name="calendar"
+                            size={15}
+                            color={colors.primary}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.scheduleDate,
+                              { color: colors.foreground },
+                            ]}
+                          >
+                            {new Date(
+                              `${row.date}T00:00:00`,
+                            ).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.scheduleCount,
+                              { color: colors.mutedForeground },
+                            ]}
+                          >
+                            {row.count} payment(s)
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.scheduleAmount,
+                            { color: colors.foreground },
+                          ]}
+                        >
+                          {fmt(row.amount)}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <View style={styles.noActivity}>
+                      <Feather name="inbox" size={26} color={colors.border} />
+                      <Text
+                        style={[
+                          styles.panelSubtitle,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        No collection in this period
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View
+                  style={[
+                    styles.panel,
+                    styles.healthPanelDesktop,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <View style={styles.panelHeader}>
+                    <View>
+                      <Text
+                        style={[
+                          styles.panelTitle,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        Payment Status
+                      </Text>
+                      <Text
+                        style={[
+                          styles.panelSubtitle,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        Overall receivable health
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.donutArea}>
+                    <View
+                      style={[
+                        styles.donutOuter,
+                        { borderColor: colors.primary },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.donutInner,
+                          { backgroundColor: colors.card },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.donutPercent,
+                            { color: colors.foreground },
+                          ]}
+                        >
+                          {paidPercent}%
+                        </Text>
+                        <Text
+                          style={[
+                            styles.donutCaption,
+                            { color: colors.mutedForeground },
+                          ]}
+                        >
+                          PAID
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.donutLegend}>
+                    <View style={styles.legendRow}>
+                      <View
+                        style={[
+                          styles.legendDot,
+                          { backgroundColor: colors.paid },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.legendLabel,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        Paid
+                      </Text>
+                      <Text
+                        style={[
+                          styles.legendValue,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        {short(totalPaid)}
+                      </Text>
+                    </View>
+                    <View style={styles.legendRow}>
+                      <View
+                        style={[
+                          styles.legendDot,
+                          { backgroundColor: colors.overdue },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.legendLabel,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        Outstanding
+                      </Text>
+                      <Text
+                        style={[
+                          styles.legendValue,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        {short(totalOutstanding)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.panel,
+                  styles.trendPanelDesktop,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <View style={styles.panelHeader}>
+                  <View>
+                    <Text
+                      style={[styles.panelTitle, { color: colors.foreground }]}
+                    >
+                      Monthly Collection Trend
+                    </Text>
+                    <Text
+                      style={[
+                        styles.panelSubtitle,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      Last six months performance
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => goCollection("year")}>
+                    <Text style={[styles.panelLink, { color: colors.primary }]}>
+                      Full report →
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.compactBars}>
+                  {monthly.slice(-6).map((m: any) => (
+                    <View
+                      key={`${m.year}-${m.month}`}
+                      style={styles.compactBarCol}
+                    >
+                      <Text
+                        style={[
+                          styles.compactBarValue,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        {short(m.amount)}
+                      </Text>
+                      <LinearGradient
+                        colors={[colors.primary, "#60A5FA"]}
+                        style={[
+                          styles.compactBar,
+                          {
+                            height: Math.max(
+                              12,
+                              (Number(m.amount || 0) / maxMonthly) * 115,
+                            ),
+                          },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.compactBarLabel,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        {m.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.desktopRail}>
+              <TouchableOpacity
+                style={[
+                  styles.railCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+                onPress={() => router.push("/(tabs)/customers" as any)}
+              >
+                <View
+                  style={[
+                    styles.railIcon,
+                    { backgroundColor: colors.primary + "10" },
+                  ]}
+                >
+                  <Feather name="users" size={20} color={colors.primary} />
+                </View>
+                <Text
+                  style={[styles.railLabel, { color: colors.mutedForeground }]}
+                >
+                  REGISTERED STORES
+                </Text>
+                <Text style={[styles.railValue, { color: colors.foreground }]}>
+                  {stats?.totalCustomers ?? 0}
+                </Text>
+                <Text style={[styles.railLink, { color: colors.primary }]}>
+                  Manage stores →
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.railCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+                onPress={() => router.push("/report/overdue")}
+              >
+                <View
+                  style={[
+                    styles.railIcon,
+                    { backgroundColor: colors.warning + "12" },
+                  ]}
+                >
+                  <Feather name="clock" size={20} color={colors.warning} />
+                </View>
+                <Text
+                  style={[styles.railLabel, { color: colors.mutedForeground }]}
+                >
+                  DUE IN 3 DAYS
+                </Text>
+                <Text style={[styles.railValue, { color: colors.foreground }]}>
+                  {stats?.dueIn3DaysCount ?? 0}
+                </Text>
+                <Text style={[styles.railLink, { color: colors.warning }]}>
+                  Review invoices →
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.railCard,
+                  styles.registerRailCard,
+                  { backgroundColor: "#0F172A", borderColor: "#0F172A" },
+                ]}
+                onPress={() => router.push("/register" as any)}
+              >
+                <View
+                  style={[
+                    styles.railIcon,
+                    { backgroundColor: "rgba(255,255,255,.12)" },
+                  ]}
+                >
+                  <Feather name="book-open" size={20} color="#FFFFFF" />
+                </View>
+                <Text style={[styles.railLabel, { color: "#94A3B8" }]}>
+                  MONTHLY REGISTER
+                </Text>
+                <Text style={[styles.registerRailTitle, { color: "#FFFFFF" }]}>
+                  Agency ledger
+                </Text>
+                <Text style={[styles.railLink, { color: "#60A5FA" }]}>
+                  Open register →
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
@@ -856,4 +1461,243 @@ const styles = StyleSheet.create({
   quickRow: { flexDirection: "row", paddingHorizontal: 16, gap: 10 },
   quick: { flex: 1, borderRadius: 14, padding: 16, gap: 8 },
   quickText: { color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold" },
+  desktopShell: {
+    width: "100%",
+    maxWidth: 1420,
+    alignSelf: "center",
+    padding: 28,
+    gap: 20,
+  },
+  desktopHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  desktopEyebrow: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.4,
+  },
+  desktopPageTitle: {
+    fontSize: 25,
+    fontFamily: "Inter_700Bold",
+    marginTop: 4,
+    letterSpacing: -0.5,
+  },
+  desktopHeaderActions: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerActionBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  desktopProfile: {
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 10,
+  },
+  profileAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileAvatarText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+  },
+  profileName: { fontSize: 12, fontFamily: "Inter_700Bold" },
+  profileRole: { fontSize: 9, marginTop: 1 },
+  desktopFilterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  desktopSectionLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.2,
+  },
+  desktopPeriodGroup: { flexDirection: "row", gap: 7 },
+  desktopPeriodBtn: {
+    borderRadius: 9,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  desktopPeriodText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  balanceRow: { flexDirection: "row", gap: 16 },
+  balanceCard: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    gap: 18,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  balanceTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  balanceLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.8,
+  },
+  balanceValue: {
+    fontSize: 30,
+    fontFamily: "Inter_700Bold",
+    marginTop: 7,
+    letterSpacing: -1,
+  },
+  balanceIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  balanceMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  balanceMetaText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  balanceLink: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  desktopMainGrid: { flexDirection: "row", gap: 16, alignItems: "stretch" },
+  desktopMainColumn: { flex: 1, gap: 16 },
+  desktopMidRow: { flexDirection: "row", gap: 16, alignItems: "stretch" },
+  desktopRail: { width: 245, gap: 12 },
+  panel: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.035,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  schedulePanel: { flex: 1.45, minHeight: 305 },
+  healthPanelDesktop: { flex: 0.9, minHeight: 305 },
+  panelHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  panelTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  panelSubtitle: { fontSize: 9, marginTop: 3 },
+  panelLink: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  scheduleRow: {
+    minHeight: 49,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+  },
+  scheduleDateIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scheduleDate: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  scheduleCount: { fontSize: 9, marginTop: 2 },
+  scheduleAmount: { fontSize: 12, fontFamily: "Inter_700Bold" },
+  noActivity: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+  donutArea: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 4,
+  },
+  donutOuter: {
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    borderWidth: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  donutInner: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  donutPercent: { fontSize: 21, fontFamily: "Inter_700Bold" },
+  donutCaption: {
+    fontSize: 8,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  donutLegend: { gap: 7, marginTop: 10 },
+  legendRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendLabel: { flex: 1, fontSize: 10 },
+  legendValue: { fontSize: 11, fontFamily: "Inter_700Bold" },
+  trendPanelDesktop: { minHeight: 220 },
+  compactBars: {
+    height: 148,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 18,
+    paddingHorizontal: 8,
+  },
+  compactBarCol: {
+    flex: 1,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  compactBarValue: { fontSize: 8, marginBottom: 5 },
+  compactBar: { width: "58%", borderRadius: 5 },
+  compactBarLabel: { fontSize: 9, marginTop: 6 },
+  railCard: {
+    flex: 1,
+    minHeight: 132,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.035,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  railIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 13,
+  },
+  railLabel: { fontSize: 8, fontFamily: "Inter_700Bold", letterSpacing: 0.8 },
+  railValue: { fontSize: 25, fontFamily: "Inter_700Bold", marginTop: 4 },
+  railLink: { fontSize: 9, fontFamily: "Inter_600SemiBold", marginTop: "auto" },
+  registerRailCard: { minHeight: 138 },
+  registerRailTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    marginTop: 5,
+  },
 });
