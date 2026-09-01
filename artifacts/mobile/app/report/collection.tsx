@@ -13,6 +13,10 @@ const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN || "pharma-pay-tracke
 
 function formatCurrency(amount: number) { return "₹" + amount.toLocaleString("en-IN", { minimumFractionDigits: 0 }); }
 function iso(d: Date) { return d.toISOString().split("T")[0]; }
+function formatDateInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 6);
+  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 6)].filter(Boolean).join("-");
+}
 
 type Preset = "today" | "week" | "previousMonth" | "month" | "year" | "custom" | "all";
 type DailyCollection = { date: string; amount: number; count: number };
@@ -43,7 +47,7 @@ export default function CollectionScreen() {
   // two screens from showing different persisted-cache snapshots.
   const { data: overview, isLoading: dailyLoading } = useQuery<{ periodRows: DailyCollection[] }>({
     queryKey: ["dashboard-overview", range.fromDate, range.toDate],
-    enabled: Boolean(range.fromDate && range.toDate),
+    enabled: Boolean(range.fromDate && range.toDate && range.fromDate <= range.toDate),
     staleTime: 0,
     refetchOnMount: "always",
     queryFn: async () => {
@@ -59,12 +63,13 @@ export default function CollectionScreen() {
   const { data: monthly } = useGetMonthlyCollectionReport({ year });
   const total = (daily ?? []).reduce((s, row) => s + row.amount, 0); const count = (daily ?? []).reduce((s, row) => s + row.count, 0);
   const chips: { key: Preset; label: string }[] = [{ key: "today", label: "Today" }, { key: "week", label: "7 Days" }, { key: "previousMonth", label: "Previous Month" }, { key: "month", label: "This Month" }, { key: "year", label: "This Year" }, { key: "all", label: "All" }, { key: "custom", label: "Custom" }];
-  const customReady = Boolean(range.fromDate && range.toDate);
+  const customDatesValid = Boolean(range.fromDate && range.toDate);
+  const customReady = Boolean(customDatesValid && range.fromDate! <= range.toDate!);
 
   return <View style={[styles.container, { backgroundColor: colors.background }]}>
     <View style={styles.filters}>
       <FlatList horizontal data={chips} keyExtractor={i => i.key} showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} renderItem={({ item }) => { const active = preset === item.key; return <TouchableOpacity style={[styles.chip, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]} onPress={() => setPreset(item.key)}><Text style={{ color: active ? "#fff" : colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{item.label}</Text></TouchableOpacity>; }} />
-      {preset === "custom" && <><View style={styles.customRow}><TextInput value={customFrom} onChangeText={setCustomFrom} placeholder="From DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="numbers-and-punctuation" maxLength={8} style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} /><TextInput value={customTo} onChangeText={setCustomTo} placeholder="To DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="numbers-and-punctuation" maxLength={8} style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} /></View><Text style={[styles.customHint, { color: customReady ? colors.paid : colors.mutedForeground }]}>{customReady ? `${customFrom} se ${customTo} ka report` : "Dono dates DD-MM-YY format me bharein (example: 01-08-26)"}</Text></>}
+      {preset === "custom" && <><View style={styles.customRow}><TextInput value={customFrom} onChangeText={value => setCustomFrom(formatDateInput(value))} placeholder="From DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" maxLength={8} style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} /><TextInput value={customTo} onChangeText={value => setCustomTo(formatDateInput(value))} placeholder="To DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" maxLength={8} style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} /></View><Text style={[styles.customHint, { color: customReady ? colors.paid : customDatesValid ? colors.overdue : colors.mutedForeground }]}>{customReady ? `${customFrom} se ${customTo} ka report` : customDatesValid ? "From date, To date se pehle honi chahiye" : "Sirf 6 digits type karein — 010826 automatic 01-08-26 banega"}</Text></>}
     </View>
     <View style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}><View><Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>COLLECTION</Text><Text style={[styles.summaryAmount, { color: colors.paid }]}>{formatCurrency(total)}</Text></View><View style={{ alignItems: "flex-end" }}><Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>PAYMENTS</Text><Text style={[styles.summaryCount, { color: colors.foreground }]}>{count}</Text></View></View>
     {dailyLoading ? <View style={styles.loader}><ActivityIndicator color={colors.primary} size="large" /></View> : <FlatList data={daily ?? []} keyExtractor={item => item.date} renderItem={({ item }) => <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}><View><Text style={[styles.period, { color: colors.foreground }]}>{formatDateDDMMYY(item.date)}</Text><Text style={[styles.count, { color: colors.mutedForeground }]}>{item.count} payment(s)</Text></View><Text style={[styles.amount, { color: colors.paid }]}>{formatCurrency(item.amount)}</Text></View>} ListEmptyComponent={<EmptyState icon="bar-chart-2" title="No data" subtitle="No collection data in this period" />} contentContainerStyle={{ paddingBottom: insets.bottom + (isWeb ? 34 : 20) }} showsVerticalScrollIndicator={false} ListFooterComponent={preset === "year" && monthly && monthly.length ? <View style={[styles.yearBox, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.yearTitle, { color: colors.foreground }]}>Monthly breakdown</Text>{monthly.map(m => <View key={`${m.year}-${m.month}`} style={styles.monthRow}><Text style={{ color: colors.mutedForeground }}>{m.label} {m.year}</Text><Text style={{ color: colors.paid, fontFamily: "Inter_600SemiBold" }}>{formatCurrency(m.amount)}</Text></View>)}</View> : null} />}
