@@ -12,6 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,9 +50,9 @@ export default function LoginScreen() {
     >
       <View style={[styles.inner, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.header}>
-          <View style={[styles.logoWrap, { backgroundColor: colors.primary }]}>
+          <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.logoWrap}>
             <Feather name="activity" size={36} color="#fff" />
-          </View>
+          </LinearGradient>
           <Text style={[styles.appName, { color: colors.primary }]}>MedPay</Text>
           <Text style={[styles.tagline, { color: colors.mutedForeground }]}>Medical Agency Payment Manager</Text>
         </View>
