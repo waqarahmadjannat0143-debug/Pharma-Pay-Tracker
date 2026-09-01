@@ -2,6 +2,15 @@ name: Build MedPay Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "artifacts/mobile/**"
+      - "lib/api-client-react/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/build-android-apk.yml"
 
 permissions:
   contents: read
