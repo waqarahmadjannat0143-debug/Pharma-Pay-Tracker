@@ -145,7 +145,7 @@ export default function DashboardScreen() {
       1,
     );
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: "#F3F6FC" }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -268,7 +268,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={[
                 styles.balanceCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
               ]}
               onPress={() => router.push("/report/outstanding")}
             >
@@ -315,7 +315,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={[
                 styles.balanceCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                { backgroundColor: "#F0FDFA", borderColor: "#99F6E4" },
               ]}
               onPress={() => goCollection(period)}
             >
@@ -367,8 +367,8 @@ export default function DashboardScreen() {
                     styles.panel,
                     styles.schedulePanel,
                     {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
+                      backgroundColor: "#F8FAFF",
+                      borderColor: "#DBEAFE",
                     },
                   ]}
                 >
@@ -477,8 +477,8 @@ export default function DashboardScreen() {
                     styles.panel,
                     styles.healthPanelDesktop,
                     {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
+                      backgroundColor: "#F0FDFA",
+                      borderColor: "#99F6E4",
                     },
                   ]}
                 >
@@ -591,7 +591,7 @@ export default function DashboardScreen() {
                 style={[
                   styles.panel,
                   styles.trendPanelDesktop,
-                  { backgroundColor: colors.card, borderColor: colors.border },
+                  { backgroundColor: "#F8FAFF", borderColor: "#DBEAFE" },
                 ]}
               >
                 <View style={styles.panelHeader}>
@@ -660,7 +660,7 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 style={[
                   styles.railCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
+                  { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
                 ]}
                 onPress={() => router.push("/(tabs)/customers" as any)}
               >
@@ -687,7 +687,7 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 style={[
                   styles.railCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
+                  { backgroundColor: "#FFFBEB", borderColor: "#FDE68A" },
                 ]}
                 onPress={() => router.push("/report/overdue")}
               >
