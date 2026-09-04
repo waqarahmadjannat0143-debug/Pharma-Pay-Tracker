@@ -2,12 +2,14 @@ import { pgTable, text, serial, timestamp, numeric, integer, date } from "drizzl
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { customersTable } from "./customers";
+import { organizationsTable } from "./organizations";
 
 export const paymentModeEnum = ["cash", "upi", "bank_transfer", "cheque"] as const;
 export type PaymentMode = typeof paymentModeEnum[number];
 
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizationsTable.id, { onDelete: "cascade" }),
   customerId: integer("customer_id").notNull().references(() => customersTable.id, { onDelete: "cascade" }),
   paymentDate: date("payment_date", { mode: "string" }).notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
@@ -20,6 +22,7 @@ export const paymentsTable = pgTable("payments", {
 
 export const paymentAllocationsTable = pgTable("payment_allocations", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizationsTable.id, { onDelete: "cascade" }),
   paymentId: integer("payment_id").notNull().references(() => paymentsTable.id, { onDelete: "cascade" }),
   invoiceId: integer("invoice_id").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),

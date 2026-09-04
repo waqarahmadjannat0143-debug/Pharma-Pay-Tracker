@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, agenciesTable } from "@workspace/db";
-import { asc, eq, ilike } from "drizzle-orm";
+import { and, asc, eq, ilike } from "drizzle-orm";
 import { requireAuth, AuthRequest } from "../middlewares/authMiddleware";
 
 const router = Router();
@@ -14,7 +14,7 @@ router.get("/", async (req: AuthRequest, res) => {
   try {
     const search = String(req.query.search || "").trim();
     const rows = await db.select().from(agenciesTable)
-      .where(search ? ilike(agenciesTable.name, `%${search}%`) : undefined)
+      .where(and(eq(agenciesTable.organizationId, req.adminUser!.organizationId), search ? ilike(agenciesTable.name, `%${search}%`) : undefined))
       .orderBy(asc(agenciesTable.name));
     res.json(rows);
   } catch (err) {
@@ -28,9 +28,10 @@ router.post("/", async (req: AuthRequest, res) => {
     const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
     const normalizedName = normalizeAgencyName(name);
     if (!name || !normalizedName) { res.status(400).json({ error: "Agency name is required" }); return; }
-    const [existing] = await db.select().from(agenciesTable).where(eq(agenciesTable.normalizedName, normalizedName));
+    const organizationId = req.adminUser!.organizationId;
+    const [existing] = await db.select().from(agenciesTable).where(and(eq(agenciesTable.organizationId, organizationId), eq(agenciesTable.normalizedName, normalizedName)));
     if (existing) { res.json({ ...existing, existing: true }); return; }
-    const [agency] = await db.insert(agenciesTable).values({ name, normalizedName }).returning();
+    const [agency] = await db.insert(agenciesTable).values({ organizationId, name, normalizedName }).returning();
     res.status(201).json(agency);
   } catch (err: any) {
     if (err?.code === "23505") { res.status(409).json({ error: "This agency already exists" }); return; }
