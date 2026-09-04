@@ -42,6 +42,10 @@ export default function Privacy() {
         title="Policy updates"
         text="Material changes will be reflected on this page with a new effective date."
       />
+      <Section
+        title="Contact"
+        text="For privacy questions or account-deletion help, email drforex83@gmail.com."
+      />
     </ScrollView>
   );
 }
