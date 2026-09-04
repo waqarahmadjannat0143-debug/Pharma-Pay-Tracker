@@ -185,11 +185,12 @@ export default function DashboardScreen() {
                   color={colors.mutedForeground}
                 />
               </TouchableOpacity>
-              <View
+              <TouchableOpacity
                 style={[
                   styles.desktopProfile,
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
+                onPress={() => router.push("/account" as any)}
               >
                 <View
                   style={[
@@ -223,7 +224,7 @@ export default function DashboardScreen() {
                     color={colors.mutedForeground}
                   />
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -769,7 +770,7 @@ export default function DashboardScreen() {
             ]}
           >
             <View style={[styles.heroTop, isDesktop && styles.heroTopDesktop]}>
-              <View>
+              <TouchableOpacity onPress={() => router.push("/account" as any)}>
                 <Text
                   style={[styles.greeting, { color: colors.mutedForeground }]}
                 >
@@ -792,7 +793,7 @@ export default function DashboardScreen() {
                 >
                   {isDesktop ? "Here is your payment overview" : ""}
                 </Text>
-              </View>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.logout, { backgroundColor: colors.muted }]}
                 onPress={logout}
@@ -1059,59 +1060,100 @@ export default function DashboardScreen() {
             <View style={styles.mobileHealthBody}>
               <View style={styles.mobileDonut}>
                 <Svg width={132} height={132} viewBox="0 0 132 132">
-                  <Circle cx="66" cy="66" r="50" fill="none" stroke={colors.overdue+"28"} strokeWidth="14" />
-                  <Circle cx="66" cy="66" r="50" fill="none" stroke={colors.paid} strokeWidth="14" strokeLinecap="round" strokeDasharray={`${Math.PI*100}`} strokeDashoffset={`${Math.PI*100*(1-paidPercent/100)}`} rotation="-90" origin="66,66" />
+                  <Circle
+                    cx="66"
+                    cy="66"
+                    r="50"
+                    fill="none"
+                    stroke={colors.overdue + "28"}
+                    strokeWidth="14"
+                  />
+                  <Circle
+                    cx="66"
+                    cy="66"
+                    r="50"
+                    fill="none"
+                    stroke={colors.paid}
+                    strokeWidth="14"
+                    strokeLinecap="round"
+                    strokeDasharray={`${Math.PI * 100}`}
+                    strokeDashoffset={`${Math.PI * 100 * (1 - paidPercent / 100)}`}
+                    rotation="-90"
+                    origin="66,66"
+                  />
                 </Svg>
-                <View style={styles.mobileDonutCenter}><Text style={[styles.mobileDonutPercent,{color:colors.foreground}]}>{paidPercent}%</Text><Text style={[styles.mobileDonutLabel,{color:colors.mutedForeground}]}>PAID</Text></View>
+                <View style={styles.mobileDonutCenter}>
+                  <Text
+                    style={[
+                      styles.mobileDonutPercent,
+                      { color: colors.foreground },
+                    ]}
+                  >
+                    {paidPercent}%
+                  </Text>
+                  <Text
+                    style={[
+                      styles.mobileDonutLabel,
+                      { color: colors.mutedForeground },
+                    ]}
+                  >
+                    PAID
+                  </Text>
+                </View>
               </View>
               <View style={styles.mobileHealthMetrics}>
-              <View style={styles.healthMetric}>
-                <View
-                  style={[styles.healthDot, { backgroundColor: colors.paid }]}
-                />
-                <View>
-                  <Text
-                    style={[
-                      styles.healthMetricLabel,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    TOTAL PAID
-                  </Text>
-                  <Text
-                    style={[styles.healthMetricValue, { color: colors.paid }]}
-                  >
-                    {short(totalPaid)}
-                  </Text>
+                <View style={styles.healthMetric}>
+                  <View
+                    style={[styles.healthDot, { backgroundColor: colors.paid }]}
+                  />
+                  <View>
+                    <Text
+                      style={[
+                        styles.healthMetricLabel,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      TOTAL PAID
+                    </Text>
+                    <Text
+                      style={[styles.healthMetricValue, { color: colors.paid }]}
+                    >
+                      {short(totalPaid)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <View style={[styles.mobileDivider,{backgroundColor:colors.border}]}/>
-              <View style={styles.healthMetric}>
                 <View
                   style={[
-                    styles.healthDot,
-                    { backgroundColor: colors.overdue },
+                    styles.mobileDivider,
+                    { backgroundColor: colors.border },
                   ]}
                 />
-                <View>
-                  <Text
+                <View style={styles.healthMetric}>
+                  <View
                     style={[
-                      styles.healthMetricLabel,
-                      { color: colors.mutedForeground },
+                      styles.healthDot,
+                      { backgroundColor: colors.overdue },
                     ]}
-                  >
-                    OUTSTANDING
-                  </Text>
-                  <Text
-                    style={[
-                      styles.healthMetricValue,
-                      { color: colors.overdue },
-                    ]}
-                  >
-                    {short(totalOutstanding)}
-                  </Text>
+                  />
+                  <View>
+                    <Text
+                      style={[
+                        styles.healthMetricLabel,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      OUTSTANDING
+                    </Text>
+                    <Text
+                      style={[
+                        styles.healthMetricValue,
+                        { color: colors.overdue },
+                      ]}
+                    >
+                      {short(totalOutstanding)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
               </View>
             </View>
             <View style={styles.healthLegend}>
@@ -1387,13 +1429,27 @@ const styles = StyleSheet.create({
   healthScore: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 20 },
   healthScoreText: { fontSize: 11, fontFamily: "Inter_700Bold" },
   healthMetrics: { flexDirection: "row", gap: 24 },
-  mobileHealthBody:{flexDirection:"row",alignItems:"center",gap:18},
-  mobileDonut:{width:132,height:132,alignItems:"center",justifyContent:"center"},
-  mobileDonutCenter:{position:"absolute",alignItems:"center",justifyContent:"center"},
-  mobileDonutPercent:{fontSize:23,fontFamily:"Inter_700Bold"},
-  mobileDonutLabel:{fontSize:9,fontFamily:"Inter_700Bold",letterSpacing:1,marginTop:2},
-  mobileHealthMetrics:{flex:1,gap:13},
-  mobileDivider:{height:1,width:"100%"},
+  mobileHealthBody: { flexDirection: "row", alignItems: "center", gap: 18 },
+  mobileDonut: {
+    width: 132,
+    height: 132,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mobileDonutCenter: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mobileDonutPercent: { fontSize: 23, fontFamily: "Inter_700Bold" },
+  mobileDonutLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  mobileHealthMetrics: { flex: 1, gap: 13 },
+  mobileDivider: { height: 1, width: "100%" },
   healthMetric: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9 },
   healthDot: { width: 10, height: 10, borderRadius: 5 },
   healthMetricLabel: {
