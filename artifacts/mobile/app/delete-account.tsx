@@ -33,6 +33,11 @@ export default function DeleteAccountInfo() {
         allocations and workspace account details. Export a backup first if you
         need a copy.
       </Text>
+      <Text style={[s.body, { color: c.mutedForeground }]}>
+        If you cannot sign in, request deletion from drforex83@gmail.com using
+        the email registered with your MedPay account. Identity verification is
+        required before deletion.
+      </Text>
     </ScrollView>
   );
 }

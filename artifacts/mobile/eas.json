@@ -10,7 +10,9 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "pharma-pay-tracker.onrender.com"
+        "EXPO_PUBLIC_DOMAIN": "pharma-pay-tracker.onrender.com",
+        "EAS_RESTORE_CACHE": "0",
+        "EAS_SAVE_CACHE": "0"
       }
     },
     "production": {
@@ -18,7 +20,9 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "pharma-pay-tracker.onrender.com"
+        "EXPO_PUBLIC_DOMAIN": "pharma-pay-tracker.onrender.com",
+        "EAS_RESTORE_CACHE": "0",
+        "EAS_SAVE_CACHE": "0"
       }
     }
   },

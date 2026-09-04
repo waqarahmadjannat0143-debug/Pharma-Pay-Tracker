@@ -25,7 +25,14 @@
       "package": "com.medpay.agency",
       "versionCode": 2,
       "edgeToEdgeEnabled": true,
-      "permissions": []
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
