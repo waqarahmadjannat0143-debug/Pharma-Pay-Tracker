@@ -197,6 +197,7 @@ export default function CustomersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [balanceFilter, setBalanceFilter] = useState<"all" | "due" | "clear">("all");
   const isWeb = Platform.OS === "web";
   const { isDesktop, isTablet } = useBreakpoint();
 
@@ -209,14 +210,17 @@ export default function CustomersScreen() {
   } = useGetCustomers({});
   const customers = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return allCustomers;
     return allCustomers?.filter(
-      (customer) =>
+      (customer) => {
+        const matchesBalance = balanceFilter === "all" || (balanceFilter === "due" ? customer.totalOutstanding > 0 : customer.totalOutstanding <= 0);
+        const matchesSearch = !term ||
         customer.name.toLowerCase().includes(term) ||
         customer.ownerName?.toLowerCase().includes(term) ||
-        customer.mobile?.includes(term),
+        customer.mobile?.includes(term);
+        return matchesBalance && matchesSearch;
+      },
     );
-  }, [allCustomers, search]);
+  }, [allCustomers, search, balanceFilter]);
 
   const headerPaddingTop = isDesktop ? 20 : isWeb ? 67 + 12 : insets.top + 12;
   const totalOutstanding = (customers ?? []).reduce(
@@ -266,6 +270,12 @@ export default function CustomersScreen() {
           onChangeText={setSearch}
           placeholder="Search stores..."
         />
+        <View style={styles.balanceFilters}>
+          {([['all','All Stores'],['due','Outstanding'],['clear','Clear']] as const).map(([key,label])=>{
+            const active=balanceFilter===key;
+            return <TouchableOpacity key={key} onPress={()=>setBalanceFilter(key)} style={[styles.balanceChip,{backgroundColor:active?colors.primary:colors.card,borderColor:active?colors.primary:colors.border}]}><Text style={[styles.balanceChipText,{color:active?'#fff':colors.mutedForeground}]}>{label}</Text></TouchableOpacity>;
+          })}
+        </View>
       </View>
 
       {isLoading ? (
@@ -302,7 +312,7 @@ export default function CustomersScreen() {
         ) : (
           <EmptyState
             icon="users"
-            title={search ? "No stores found" : "No stores yet"}
+            title={search || balanceFilter!=="all" ? "No stores found" : "No stores yet"}
             subtitle={
               search
                 ? "Try a different search"
@@ -323,7 +333,7 @@ export default function CustomersScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="users"
-              title={search ? "No stores found" : "No stores yet"}
+              title={search || balanceFilter!=="all" ? "No stores found" : "No stores yet"}
               subtitle={
                 search
                   ? "Try a different search"
@@ -367,6 +377,9 @@ const styles = StyleSheet.create({
   },
   addBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
   searchWrap: { paddingVertical: 8 },
+  balanceFilters:{flexDirection:"row",gap:7,marginTop:8},
+  balanceChip:{paddingHorizontal:12,paddingVertical:7,borderRadius:18,borderWidth:1},
+  balanceChipText:{fontSize:11,fontFamily:"Inter_600SemiBold"},
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
   loadTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginTop: 14 },
   loadText: {
