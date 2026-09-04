@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import legalRouter from "./routes/legal";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -35,9 +36,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", (_req, res, next) => {
-  res.set("Cache-Control", "no-store");
-  next();
-}, router);
+app.use(legalRouter);
+
+app.use(
+  "/api",
+  (_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  },
+  router,
+);
 
 export default app;
