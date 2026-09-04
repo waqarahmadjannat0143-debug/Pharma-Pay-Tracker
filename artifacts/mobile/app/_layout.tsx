@@ -67,6 +67,7 @@ function RootLayoutNav(){
     <Stack.Screen name="index" options={{headerShown:false}}/>
     <Stack.Screen name="login" options={{headerShown:false}}/>
     <Stack.Screen name="signup" options={{title:"Create MedPay Account",headerBackTitle:"Login"}}/>
+    <Stack.Screen name="account" options={{title:"Account & Plan",headerBackTitle:"Back"}}/>
     <Stack.Screen name="(tabs)" options={{headerShown:false}}/>
     <Stack.Screen name="customer/add" options={{title:"Add Medical Store",headerBackTitle:"Back"}}/>
     <Stack.Screen name="customer/[id]" options={{title:"Store Details",headerBackTitle:"Back"}}/>

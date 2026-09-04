@@ -120,7 +120,10 @@ export function Sidebar() {
       </View>
 
       {/* User / Logout */}
-      <View style={[styles.userSection, { borderTopColor: "#1E293B" }]}>
+      <TouchableOpacity
+        onPress={() => router.push("/account" as any)}
+        style={[styles.userSection, { borderTopColor: "#1E293B" }]}
+      >
         <View style={[styles.userAvatar, { backgroundColor: colors.primary }]}>
           <Text style={styles.userAvatarText}>
             {(username ?? "A")[0].toUpperCase()}
@@ -144,7 +147,7 @@ export function Sidebar() {
         >
           <Feather name="log-out" size={16} color="#94A3B8" />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     </View>
   );
 }
