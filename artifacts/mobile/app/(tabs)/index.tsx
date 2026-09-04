@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
+import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -1055,7 +1056,15 @@ export default function DashboardScreen() {
                 </Text>
               </View>
             </View>
-            <View style={styles.healthMetrics}>
+            <View style={styles.mobileHealthBody}>
+              <View style={styles.mobileDonut}>
+                <Svg width={132} height={132} viewBox="0 0 132 132">
+                  <Circle cx="66" cy="66" r="50" fill="none" stroke={colors.overdue+"28"} strokeWidth="14" />
+                  <Circle cx="66" cy="66" r="50" fill="none" stroke={colors.paid} strokeWidth="14" strokeLinecap="round" strokeDasharray={`${Math.PI*100}`} strokeDashoffset={`${Math.PI*100*(1-paidPercent/100)}`} rotation="-90" origin="66,66" />
+                </Svg>
+                <View style={styles.mobileDonutCenter}><Text style={[styles.mobileDonutPercent,{color:colors.foreground}]}>{paidPercent}%</Text><Text style={[styles.mobileDonutLabel,{color:colors.mutedForeground}]}>PAID</Text></View>
+              </View>
+              <View style={styles.mobileHealthMetrics}>
               <View style={styles.healthMetric}>
                 <View
                   style={[styles.healthDot, { backgroundColor: colors.paid }]}
@@ -1076,6 +1085,7 @@ export default function DashboardScreen() {
                   </Text>
                 </View>
               </View>
+              <View style={[styles.mobileDivider,{backgroundColor:colors.border}]}/>
               <View style={styles.healthMetric}>
                 <View
                   style={[
@@ -1102,22 +1112,7 @@ export default function DashboardScreen() {
                   </Text>
                 </View>
               </View>
-            </View>
-            <View
-              style={[
-                styles.healthTrack,
-                { backgroundColor: colors.overdue + "30" },
-              ]}
-            >
-              <View
-                style={[
-                  styles.healthPaid,
-                  {
-                    backgroundColor: colors.paid,
-                    width: `${paidPercent}%` as any,
-                  },
-                ]}
-              />
+              </View>
             </View>
             <View style={styles.healthLegend}>
               <Text style={[styles.healthLegendText, { color: colors.paid }]}>
@@ -1392,6 +1387,13 @@ const styles = StyleSheet.create({
   healthScore: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 20 },
   healthScoreText: { fontSize: 11, fontFamily: "Inter_700Bold" },
   healthMetrics: { flexDirection: "row", gap: 24 },
+  mobileHealthBody:{flexDirection:"row",alignItems:"center",gap:18},
+  mobileDonut:{width:132,height:132,alignItems:"center",justifyContent:"center"},
+  mobileDonutCenter:{position:"absolute",alignItems:"center",justifyContent:"center"},
+  mobileDonutPercent:{fontSize:23,fontFamily:"Inter_700Bold"},
+  mobileDonutLabel:{fontSize:9,fontFamily:"Inter_700Bold",letterSpacing:1,marginTop:2},
+  mobileHealthMetrics:{flex:1,gap:13},
+  mobileDivider:{height:1,width:"100%"},
   healthMetric: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9 },
   healthDot: { width: 10, height: 10, borderRadius: 5 },
   healthMetricLabel: {
