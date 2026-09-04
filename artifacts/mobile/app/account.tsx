@@ -24,17 +24,82 @@ type Account = {
 };
 export default function AccountScreen() {
   const c = useColors(),
-    { logout } = useAuth(),
+    { login, logout } = useAuth(),
     [a, setA] = useState<Account | null>(null),
     [error, setError] = useState(""),
     [currentPassword, setCurrent] = useState(""),
     [newPassword, setNext] = useState(""),
+    [fullName, setFullName] = useState(""),
+    [businessName, setBusinessName] = useState(""),
+    [email, setEmail] = useState(""),
+    [username, setUsername] = useState(""),
     [busy, setBusy] = useState(false);
   useEffect(() => {
     medpayApi<Account>("/api/account/me")
       .then(setA)
       .catch((e) => setError(e.message));
   }, []);
+  useEffect(() => {
+    if (!a?.legacy) return;
+    setBusinessName(a.businessName || "");
+    setUsername(a.username === "admin" ? "" : a.username);
+  }, [a]);
+  const claimLegacy = async () => {
+    if (
+      fullName.trim().length < 2 ||
+      businessName.trim().length < 2 ||
+      username.trim().length < 4 ||
+      !/^\S+@\S+\.\S+$/.test(email.trim()) ||
+      newPassword.length < 8 ||
+      !currentPassword
+    ) {
+      Alert.alert(
+        "Complete all fields",
+        "Enter your name, business, valid email, 4+ character username, current admin password and a new 8+ character password.",
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await medpayApi<{ token: string; username: string }>(
+        "/api/account/claim-legacy",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            businessName: businessName.trim(),
+            email: email.trim(),
+            username: username.trim(),
+            currentPassword,
+            password: newPassword,
+          }),
+        },
+      );
+      await login(result.token, result.username);
+      setCurrent("");
+      setNext("");
+      setA((previous) =>
+        previous
+          ? {
+              ...previous,
+              legacy: false,
+              fullName: fullName.trim(),
+              businessName: businessName.trim(),
+              email: email.trim(),
+              username: result.username,
+            }
+          : previous,
+      );
+      Alert.alert(
+        "Account secured",
+        "Your existing stores, invoices and payments remain in the same workspace. Use the new username and password from now on.",
+      );
+    } catch (e: any) {
+      Alert.alert("Could not secure account", e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const change = async () => {
     if (newPassword.length < 8) {
       Alert.alert("Invalid password", "Use at least 8 characters.");
@@ -129,9 +194,65 @@ export default function AccountScreen() {
             Legacy owner account
           </Text>
           <Text style={[s.line, { color: c.mutedForeground }]}>
-            Personal password change and account deletion will be enabled after
-            owner-account conversion.
+            Create your personal owner login for this same workspace. Your
+            existing stores, invoices and payments will stay unchanged.
           </Text>
+          <TextInput
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Your full name"
+            placeholderTextColor={c.mutedForeground}
+            style={[s.input, { color: c.foreground, borderColor: c.border }]}
+          />
+          <TextInput
+            value={businessName}
+            onChangeText={setBusinessName}
+            placeholder="Business name"
+            placeholderTextColor={c.mutedForeground}
+            style={[s.input, { color: c.foreground, borderColor: c.border }]}
+          />
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="Email address"
+            placeholderTextColor={c.mutedForeground}
+            style={[s.input, { color: c.foreground, borderColor: c.border }]}
+          />
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            placeholder="New username"
+            placeholderTextColor={c.mutedForeground}
+            style={[s.input, { color: c.foreground, borderColor: c.border }]}
+          />
+          <TextInput
+            value={currentPassword}
+            onChangeText={setCurrent}
+            secureTextEntry
+            placeholder="Current admin password"
+            placeholderTextColor={c.mutedForeground}
+            style={[s.input, { color: c.foreground, borderColor: c.border }]}
+          />
+          <TextInput
+            value={newPassword}
+            onChangeText={setNext}
+            secureTextEntry
+            placeholder="New password (8+ characters)"
+            placeholderTextColor={c.mutedForeground}
+            style={[s.input, { color: c.foreground, borderColor: c.border }]}
+          />
+          <TouchableOpacity
+            disabled={busy}
+            onPress={claimLegacy}
+            style={[s.button, { backgroundColor: c.primary }]}
+          >
+            <Text style={s.buttonText}>
+              {busy ? "Securing..." : "Secure existing workspace"}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <View
