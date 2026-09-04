@@ -9,6 +9,7 @@ import reportsRouter from "./reports";
 import backupRouter from "./backup";
 import agenciesRouter from "./agencies";
 import monthlyRegisterRouter from "./monthlyRegister";
+import accountRouter from "./account";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use("/reports", reportsRouter);
 router.use("/backup", backupRouter);
 router.use("/agencies", agenciesRouter);
 router.use("/monthly-register", monthlyRegisterRouter);
+router.use("/account", accountRouter);
 
 export default router;

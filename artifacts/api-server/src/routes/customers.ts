@@ -25,7 +25,7 @@ router.get("/", async (req: AuthRequest, res) => {
       })
       .from(customersTable)
       .leftJoin(invoicesTable, eq(invoicesTable.customerId, customersTable.id))
-      .where(search ? ilike(customersTable.name, `%${search}%`) : undefined)
+      .where(and(eq(customersTable.organizationId, req.adminUser!.organizationId), search ? ilike(customersTable.name, `%${search}%`) : undefined))
       .groupBy(customersTable.id)
       .orderBy(asc(customersTable.name));
 
@@ -44,6 +44,7 @@ router.post("/", async (req: AuthRequest, res) => {
   try {
     const { name, ownerName, mobile, gstNumber, address, creditLimit, dueDays } = req.body;
     const [customer] = await db.insert(customersTable).values({
+      organizationId: req.adminUser!.organizationId,
       name, ownerName, mobile, gstNumber: gstNumber || null, address,
       creditLimit: String(creditLimit || 0),
       dueDays: dueDays || 30,
@@ -73,7 +74,7 @@ router.get("/:id", async (req: AuthRequest, res) => {
       })
       .from(customersTable)
       .leftJoin(invoicesTable, eq(invoicesTable.customerId, customersTable.id))
-      .where(eq(customersTable.id, id))
+      .where(and(eq(customersTable.id, id), eq(customersTable.organizationId, req.adminUser!.organizationId)))
       .groupBy(customersTable.id);
 
     if (!row) { res.status(404).json({ error: "Customer not found" }); return; }
@@ -97,7 +98,7 @@ router.patch("/:id", async (req: AuthRequest, res) => {
     if (creditLimit !== undefined) updates.creditLimit = String(creditLimit);
     if (dueDays !== undefined) updates.dueDays = dueDays;
 
-    const [updated] = await db.update(customersTable).set(updates).where(eq(customersTable.id, id)).returning();
+    const [updated] = await db.update(customersTable).set(updates).where(and(eq(customersTable.id, id), eq(customersTable.organizationId, req.adminUser!.organizationId))).returning();
     if (!updated) { res.status(404).json({ error: "Customer not found" }); return; }
 
     const [row] = await db
@@ -115,7 +116,7 @@ router.patch("/:id", async (req: AuthRequest, res) => {
       })
       .from(customersTable)
       .leftJoin(invoicesTable, eq(invoicesTable.customerId, customersTable.id))
-      .where(eq(customersTable.id, id))
+      .where(and(eq(customersTable.id, id), eq(customersTable.organizationId, req.adminUser!.organizationId)))
       .groupBy(customersTable.id);
 
     res.json({ ...row, creditLimit: Number(row.creditLimit), totalOutstanding: Number(row.totalOutstanding) });
@@ -128,7 +129,7 @@ router.patch("/:id", async (req: AuthRequest, res) => {
 router.delete("/:id", async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
-    await db.delete(customersTable).where(eq(customersTable.id, id));
+    await db.delete(customersTable).where(and(eq(customersTable.id, id), eq(customersTable.organizationId, req.adminUser!.organizationId)));
     res.json({ success: true, message: "Customer deleted" });
   } catch (err) {
     req.log?.error({ err }, "Failed to delete customer");
@@ -139,11 +140,12 @@ router.delete("/:id", async (req: AuthRequest, res) => {
 router.get("/:id/ledger", async (req: AuthRequest, res) => {
   try {
     const customerId = parseInt(req.params.id as string);
+    const organizationId = req.adminUser!.organizationId;
     const invoices = await db.select().from(invoicesTable)
-      .where(eq(invoicesTable.customerId, customerId))
+      .where(and(eq(invoicesTable.customerId, customerId), eq(invoicesTable.organizationId, organizationId)))
       .orderBy(asc(invoicesTable.invoiceDate));
     const payments = await db.select().from(paymentsTable)
-      .where(eq(paymentsTable.customerId, customerId))
+      .where(and(eq(paymentsTable.customerId, customerId), eq(paymentsTable.organizationId, organizationId)))
       .orderBy(asc(paymentsTable.paymentDate));
 
     const entries: any[] = [];
@@ -168,9 +170,11 @@ router.get("/:id/ledger", async (req: AuthRequest, res) => {
 router.get("/:id/invoices", async (req: AuthRequest, res) => {
   try {
     const customerId = parseInt(req.params.id as string);
-    const [customer] = await db.select({ name: customersTable.name }).from(customersTable).where(eq(customersTable.id, customerId));
+    const organizationId = req.adminUser!.organizationId;
+    const [customer] = await db.select({ name: customersTable.name }).from(customersTable).where(and(eq(customersTable.id, customerId), eq(customersTable.organizationId, organizationId)));
+    if (!customer) { res.status(404).json({ error: "Customer not found" }); return; }
     const invoices = await db.select().from(invoicesTable)
-      .where(eq(invoicesTable.customerId, customerId))
+      .where(and(eq(invoicesTable.customerId, customerId), eq(invoicesTable.organizationId, organizationId)))
       .orderBy(desc(invoicesTable.invoiceDate));
     res.json(invoices.map(inv => ({
       ...inv,

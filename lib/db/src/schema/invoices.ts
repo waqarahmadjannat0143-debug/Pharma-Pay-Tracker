@@ -3,12 +3,14 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { customersTable } from "./customers";
 import { agenciesTable } from "./agencies";
+import { organizationsTable } from "./organizations";
 
 export const invoiceStatusEnum = ["paid", "partial", "pending", "overdue"] as const;
 export type InvoiceStatus = typeof invoiceStatusEnum[number];
 
 export const invoicesTable = pgTable("invoices", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => organizationsTable.id, { onDelete: "cascade" }),
   customerId: integer("customer_id").notNull().references(() => customersTable.id, { onDelete: "cascade" }),
   agencyId: integer("agency_id").references(() => agenciesTable.id, { onDelete: "restrict" }),
   invoiceNumber: text("invoice_number").notNull(),
