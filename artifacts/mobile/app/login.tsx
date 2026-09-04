@@ -168,6 +168,25 @@ export default function LoginScreen() {
               New business? Create free account
             </Text>
           </TouchableOpacity>
+          <View style={styles.policyLinks}>
+            <TouchableOpacity onPress={() => router.push("/privacy" as any)}>
+              <Text
+                style={[styles.policyText, { color: colors.mutedForeground }]}
+              >
+                Privacy Policy
+              </Text>
+            </TouchableOpacity>
+            <Text style={{ color: colors.mutedForeground }}>•</Text>
+            <TouchableOpacity
+              onPress={() => router.push("/delete-account" as any)}
+            >
+              <Text
+                style={[styles.policyText, { color: colors.mutedForeground }]}
+              >
+                Delete Account
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -216,4 +235,11 @@ const styles = StyleSheet.create({
   },
   signupLink: { alignItems: "center", paddingVertical: 8 },
   signupText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  policyLinks: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  policyText: { fontSize: 11, fontFamily: "Inter_500Medium" },
 });

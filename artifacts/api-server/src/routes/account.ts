@@ -1,19 +1,34 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { and, eq } from "drizzle-orm";
 import { appUsersTable, db, organizationsTable } from "@workspace/db";
-import { AuthRequest, requireAuth } from "../middlewares/authMiddleware";
+import {
+  AuthRequest,
+  JWT_SECRET,
+  requireAuth,
+} from "../middlewares/authMiddleware";
 const router = Router();
 router.use(requireAuth as any);
 router.get("/me", async (req: AuthRequest, res) => {
   const auth = req.adminUser!;
   if (!auth.userId) {
+    const [organization] = await db
+      .select({
+        businessName: organizationsTable.name,
+        plan: organizationsTable.plan,
+        betaEndsAt: organizationsTable.betaEndsAt,
+      })
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, auth.organizationId));
     res.json({
       username: auth.username,
       role: auth.role,
       organizationId: auth.organizationId,
       legacy: true,
-      plan: "free_beta",
+      businessName: organization?.businessName,
+      plan: organization?.plan || "free_beta",
+      betaEndsAt: organization?.betaEndsAt,
     });
     return;
   }
@@ -44,6 +59,105 @@ router.get("/me", async (req: AuthRequest, res) => {
     return;
   }
   res.json(row);
+});
+router.post("/claim-legacy", async (req: AuthRequest, res) => {
+  try {
+    const auth = req.adminUser!;
+    if (auth.userId || auth.organizationId !== 1 || auth.role !== "owner") {
+      res.status(403).json({ error: "This workspace is already secured" });
+      return;
+    }
+
+    const legacyPassword = String(req.body.currentPassword || "");
+    const configuredLegacyPassword = process.env.ADMIN_PASSWORD || "";
+    if (
+      !configuredLegacyPassword ||
+      legacyPassword !== configuredLegacyPassword
+    ) {
+      res.status(401).json({ error: "Current admin password is incorrect" });
+      return;
+    }
+
+    const fullName = String(req.body.fullName || "").trim();
+    const businessName = String(req.body.businessName || "").trim();
+    const username = String(req.body.username || "").trim();
+    const normalizedUsername = username.toLocaleLowerCase("en-IN");
+    const email = String(req.body.email || "").trim();
+    const normalizedEmail = email.toLocaleLowerCase("en-IN");
+    const password = String(req.body.password || "");
+    if (
+      fullName.length < 2 ||
+      businessName.length < 2 ||
+      normalizedUsername.length < 4 ||
+      !/^\S+@\S+\.\S+$/.test(normalizedEmail) ||
+      password.length < 8
+    ) {
+      res.status(400).json({
+        error:
+          "Valid name, business, email, username and 8+ character password are required",
+      });
+      return;
+    }
+
+    const result = await db.transaction(async (tx) => {
+      const [existingOwner] = await tx
+        .select({ id: appUsersTable.id })
+        .from(appUsersTable)
+        .where(
+          and(
+            eq(appUsersTable.organizationId, auth.organizationId),
+            eq(appUsersTable.role, "owner"),
+          ),
+        );
+      if (existingOwner) throw new Error("WORKSPACE_ALREADY_CLAIMED");
+
+      await tx
+        .update(organizationsTable)
+        .set({ name: businessName })
+        .where(eq(organizationsTable.id, auth.organizationId));
+      const [user] = await tx
+        .insert(appUsersTable)
+        .values({
+          organizationId: auth.organizationId,
+          fullName,
+          username,
+          normalizedUsername,
+          email,
+          normalizedEmail,
+          passwordHash: await bcrypt.hash(password, 12),
+          role: "owner",
+        })
+        .returning();
+      return user;
+    });
+
+    const token = jwt.sign(
+      {
+        userId: result.id,
+        organizationId: result.organizationId,
+        username: result.username,
+        role: result.role,
+      },
+      JWT_SECRET,
+      { expiresIn: "30d" },
+    );
+    res.status(201).json({
+      token,
+      username: result.username,
+      role: result.role,
+      message: "Existing workspace secured with your personal account",
+    });
+  } catch (err: any) {
+    if (err?.message === "WORKSPACE_ALREADY_CLAIMED") {
+      res.status(409).json({ error: "This workspace already has an owner" });
+      return;
+    }
+    if (err?.code === "23505") {
+      res.status(409).json({ error: "Username or email already exists" });
+      return;
+    }
+    res.status(500).json({ error: "Workspace could not be secured" });
+  }
 });
 router.post("/change-password", async (req: AuthRequest, res) => {
   try {
