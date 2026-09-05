@@ -14,4 +14,6 @@ export interface CustomerInput {
   address: string;
   creditLimit: number;
   dueDays: number;
+  serialNumber?: number;
+  registerNumber?: number;
 }

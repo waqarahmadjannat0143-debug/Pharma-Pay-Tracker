@@ -11,7 +11,7 @@ import {
 import { requireAuth, AuthRequest } from "../middlewares/authMiddleware";
 const router = Router();
 router.use(requireAuth as any);
-const BACKUP_VERSION = 2;
+const BACKUP_VERSION = 3;
 
 router.get("/export", async (req: AuthRequest, res) => {
   try {
@@ -66,7 +66,7 @@ router.post("/restore", async (req: AuthRequest, res) => {
     if (
       !b ||
       b.app !== "MedPay" ||
-      ![1, 2].includes(b.version) ||
+      ![1, 2, 3].includes(b.version) ||
       !d ||
       ![d.customers, d.invoices, d.payments, d.paymentAllocations].every(
         Array.isArray,
@@ -110,7 +110,7 @@ router.post("/restore", async (req: AuthRequest, res) => {
           .returning({ id: agenciesTable.id });
         agencyMap.set(oldId, created.id);
       }
-      for (const row of d.customers) {
+      for (const [index, row] of d.customers.entries()) {
         const oldId = Number(row.id),
           [created] = await tx
             .insert(customersTable)
@@ -123,6 +123,8 @@ router.post("/restore", async (req: AuthRequest, res) => {
               address: String(row.address),
               creditLimit: String(row.creditLimit || 0),
               dueDays: Number(row.dueDays || 30),
+              serialNumber: Number(row.serialNumber || index + 1),
+              registerNumber: Number(row.registerNumber || index + 1),
             })
             .returning({ id: customersTable.id });
         customerMap.set(oldId, created.id);
@@ -173,14 +175,12 @@ router.post("/restore", async (req: AuthRequest, res) => {
           invoiceId = invoiceMap.get(Number(row.invoiceId));
         if (!paymentId || !invoiceId)
           throw new Error("INVALID_ALLOCATION_REFERENCE");
-        await tx
-          .insert(paymentAllocationsTable)
-          .values({
-            organizationId,
-            paymentId,
-            invoiceId,
-            amount: String(row.amount),
-          });
+        await tx.insert(paymentAllocationsTable).values({
+          organizationId,
+          paymentId,
+          invoiceId,
+          amount: String(row.amount),
+        });
       }
       return {
         agencies: agencies.length,

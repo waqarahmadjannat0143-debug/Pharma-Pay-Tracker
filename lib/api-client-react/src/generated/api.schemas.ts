@@ -34,6 +34,8 @@ export interface Customer {
   address: string;
   creditLimit: number;
   dueDays: number;
+  serialNumber: number;
+  registerNumber: number;
   totalOutstanding: number;
   createdAt: string;
 }
@@ -46,6 +48,8 @@ export interface CustomerInput {
   address: string;
   creditLimit: number;
   dueDays: number;
+  serialNumber?: number;
+  registerNumber?: number;
 }
 
 export interface CustomerUpdate {
@@ -56,6 +60,8 @@ export interface CustomerUpdate {
   address?: string;
   creditLimit?: number;
   dueDays?: number;
+  serialNumber?: number;
+  registerNumber?: number;
 }
 
 export type InvoiceStatus = typeof InvoiceStatus[keyof typeof InvoiceStatus];
@@ -241,4 +247,3 @@ toDate?: string;
 export type GetMonthlyCollectionReportParams = {
 year?: number;
 };
-

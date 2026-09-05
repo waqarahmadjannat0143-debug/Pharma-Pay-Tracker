@@ -16,12 +16,12 @@ function formatCurrency(amount: number) {
 }
 
 const AVATAR_COLORS = [
-  "#2563EB",
-  "#14B8A6",
-  "#0F766E",
-  "#16A34A",
-  "#F59E0B",
-  "#475569",
+  "#9A650D",
+  "#B88725",
+  "#7A4E08",
+  "#C49A3A",
+  "#A87313",
+  "#6F5A36",
 ];
 
 function getAvatarColor(name: string) {
@@ -51,6 +51,16 @@ export function CustomerCard({ customer, onPress }: CustomerCardProps) {
       activeOpacity={0.72}
     >
       <View style={styles.row}>
+        <View
+          style={[
+            styles.serialBadge,
+            { backgroundColor: colors.secondary, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.serialText, { color: colors.primary }]}>
+            #{customer.serialNumber}
+          </Text>
+        </View>
         <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
           <Text style={styles.avatarText}>{initials}</Text>
         </View>
@@ -136,6 +146,16 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  serialBadge: {
+    minWidth: 35,
+    height: 35,
+    paddingHorizontal: 7,
+    borderRadius: 11,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  serialText: { fontSize: 12, fontFamily: "Inter_700Bold" },
   avatar: {
     width: 46,
     height: 46,
