@@ -21,12 +21,12 @@ import { useGetCustomers } from "@workspace/api-client-react";
 import type { Customer } from "@workspace/api-client-react";
 
 const AVATAR_COLORS = [
-  "#2563EB",
-  "#14B8A6",
-  "#0F766E",
-  "#16A34A",
-  "#F59E0B",
-  "#475569",
+  "#9A650D",
+  "#B88725",
+  "#7A4E08",
+  "#C49A3A",
+  "#A87313",
+  "#6F5A36",
 ];
 function getAvatarColor(name: string) {
   let h = 0;
@@ -66,6 +66,9 @@ function DesktopTable({
             { backgroundColor: colors.muted, borderBottomColor: colors.border },
           ]}
         >
+          <Text style={[dt.th, { color: colors.mutedForeground, flex: 0.55 }]}>
+            S.No
+          </Text>
           <Text style={[dt.th, { color: colors.mutedForeground, flex: 2.5 }]}>
             Store / Owner
           </Text>
@@ -119,6 +122,11 @@ function DesktopTable({
               onPress={() => onPress(c.id)}
               activeOpacity={0.7}
             >
+              <Text
+                style={[dt.cellMain, { color: colors.primary, flex: 0.55 }]}
+              >
+                #{c.serialNumber}
+              </Text>
               <View
                 style={[
                   {
@@ -197,7 +205,9 @@ export default function CustomersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [balanceFilter, setBalanceFilter] = useState<"all" | "due" | "clear">("all");
+  const [balanceFilter, setBalanceFilter] = useState<"all" | "due" | "clear">(
+    "all",
+  );
   const isWeb = Platform.OS === "web";
   const { isDesktop, isTablet } = useBreakpoint();
 
@@ -210,16 +220,19 @@ export default function CustomersScreen() {
   } = useGetCustomers({});
   const customers = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return allCustomers?.filter(
-      (customer) => {
-        const matchesBalance = balanceFilter === "all" || (balanceFilter === "due" ? customer.totalOutstanding > 0 : customer.totalOutstanding <= 0);
-        const matchesSearch = !term ||
+    return allCustomers?.filter((customer) => {
+      const matchesBalance =
+        balanceFilter === "all" ||
+        (balanceFilter === "due"
+          ? customer.totalOutstanding > 0
+          : customer.totalOutstanding <= 0);
+      const matchesSearch =
+        !term ||
         customer.name.toLowerCase().includes(term) ||
         customer.ownerName?.toLowerCase().includes(term) ||
         customer.mobile?.includes(term);
-        return matchesBalance && matchesSearch;
-      },
-    );
+      return matchesBalance && matchesSearch;
+    });
   }, [allCustomers, search, balanceFilter]);
 
   const headerPaddingTop = isDesktop ? 20 : isWeb ? 67 + 12 : insets.top + 12;
@@ -271,9 +284,36 @@ export default function CustomersScreen() {
           placeholder="Search stores..."
         />
         <View style={styles.balanceFilters}>
-          {([['all','All Stores'],['due','Outstanding'],['clear','Clear']] as const).map(([key,label])=>{
-            const active=balanceFilter===key;
-            return <TouchableOpacity key={key} onPress={()=>setBalanceFilter(key)} style={[styles.balanceChip,{backgroundColor:active?colors.primary:colors.card,borderColor:active?colors.primary:colors.border}]}><Text style={[styles.balanceChipText,{color:active?'#fff':colors.mutedForeground}]}>{label}</Text></TouchableOpacity>;
+          {(
+            [
+              ["all", "All Stores"],
+              ["due", "Outstanding"],
+              ["clear", "Clear"],
+            ] as const
+          ).map(([key, label]) => {
+            const active = balanceFilter === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setBalanceFilter(key)}
+                style={[
+                  styles.balanceChip,
+                  {
+                    backgroundColor: active ? colors.primary : colors.card,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.balanceChipText,
+                    { color: active ? "#fff" : colors.mutedForeground },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
           })}
         </View>
       </View>
@@ -312,7 +352,11 @@ export default function CustomersScreen() {
         ) : (
           <EmptyState
             icon="users"
-            title={search || balanceFilter!=="all" ? "No stores found" : "No stores yet"}
+            title={
+              search || balanceFilter !== "all"
+                ? "No stores found"
+                : "No stores yet"
+            }
             subtitle={
               search
                 ? "Try a different search"
@@ -333,7 +377,11 @@ export default function CustomersScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="users"
-              title={search || balanceFilter!=="all" ? "No stores found" : "No stores yet"}
+              title={
+                search || balanceFilter !== "all"
+                  ? "No stores found"
+                  : "No stores yet"
+              }
               subtitle={
                 search
                   ? "Try a different search"
@@ -377,9 +425,14 @@ const styles = StyleSheet.create({
   },
   addBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
   searchWrap: { paddingVertical: 8 },
-  balanceFilters:{flexDirection:"row",gap:7,marginTop:8},
-  balanceChip:{paddingHorizontal:12,paddingVertical:7,borderRadius:18,borderWidth:1},
-  balanceChipText:{fontSize:11,fontFamily:"Inter_600SemiBold"},
+  balanceFilters: { flexDirection: "row", gap: 7, marginTop: 8 },
+  balanceChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  balanceChipText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
   loadTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginTop: 14 },
   loadText: {

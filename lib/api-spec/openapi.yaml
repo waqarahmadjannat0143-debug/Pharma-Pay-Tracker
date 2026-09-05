@@ -561,7 +561,20 @@ components:
 
     Customer:
       type: object
-      required: [id, name, ownerName, mobile, address, creditLimit, dueDays, totalOutstanding, createdAt]
+      required:
+        [
+          id,
+          name,
+          ownerName,
+          mobile,
+          address,
+          creditLimit,
+          dueDays,
+          serialNumber,
+          registerNumber,
+          totalOutstanding,
+          createdAt,
+        ]
       properties:
         id:
           type: integer
@@ -578,6 +591,10 @@ components:
         creditLimit:
           type: number
         dueDays:
+          type: integer
+        serialNumber:
+          type: integer
+        registerNumber:
           type: integer
         totalOutstanding:
           type: number
@@ -602,6 +619,12 @@ components:
           type: number
         dueDays:
           type: integer
+        serialNumber:
+          type: integer
+          minimum: 1
+        registerNumber:
+          type: integer
+          minimum: 1
 
     CustomerUpdate:
       type: object
@@ -620,10 +643,28 @@ components:
           type: number
         dueDays:
           type: integer
+        serialNumber:
+          type: integer
+          minimum: 1
+        registerNumber:
+          type: integer
+          minimum: 1
 
     Invoice:
       type: object
-      required: [id, customerId, customerName, invoiceNumber, invoiceDate, billAmount, dueDate, outstandingBalance, status, createdAt]
+      required:
+        [
+          id,
+          customerId,
+          customerName,
+          invoiceNumber,
+          invoiceDate,
+          billAmount,
+          dueDate,
+          outstandingBalance,
+          status,
+          createdAt,
+        ]
       properties:
         id:
           type: integer
@@ -678,7 +719,16 @@ components:
 
     Payment:
       type: object
-      required: [id, customerId, customerName, paymentDate, amount, paymentMode, createdAt]
+      required:
+        [
+          id,
+          customerId,
+          customerName,
+          paymentDate,
+          amount,
+          paymentMode,
+          createdAt,
+        ]
       properties:
         id:
           type: integer
@@ -731,7 +781,16 @@ components:
 
     DashboardStats:
       type: object
-      required: [totalOutstanding, totalPaid, todayCollection, thisMonthCollection, totalCustomers, overdueCount, dueIn3DaysCount]
+      required:
+        [
+          totalOutstanding,
+          totalPaid,
+          todayCollection,
+          thisMonthCollection,
+          totalCustomers,
+          overdueCount,
+          dueIn3DaysCount,
+        ]
       properties:
         totalOutstanding:
           type: number
@@ -781,7 +840,8 @@ components:
 
     OutstandingReport:
       type: object
-      required: [customerId, customerName, mobile, totalOutstanding, invoiceCount]
+      required:
+        [customerId, customerName, mobile, totalOutstanding, invoiceCount]
       properties:
         customerId:
           type: integer
@@ -798,7 +858,18 @@ components:
 
     OverdueReport:
       type: object
-      required: [invoiceId, invoiceNumber, customerId, customerName, mobile, billAmount, outstandingBalance, dueDate, daysOverdue]
+      required:
+        [
+          invoiceId,
+          invoiceNumber,
+          customerId,
+          customerName,
+          mobile,
+          billAmount,
+          outstandingBalance,
+          dueDate,
+          daysOverdue,
+        ]
       properties:
         invoiceId:
           type: integer

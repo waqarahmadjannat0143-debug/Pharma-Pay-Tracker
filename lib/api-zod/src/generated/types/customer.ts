@@ -16,6 +16,8 @@ export interface Customer {
   address: string;
   creditLimit: number;
   dueDays: number;
+  serialNumber: number;
+  registerNumber: number;
   totalOutstanding: number;
   createdAt: string;
 }

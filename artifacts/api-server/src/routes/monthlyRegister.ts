@@ -25,7 +25,7 @@ router.get("/", async (req: AuthRequest, res) => {
       return;
     }
     const result = await db.execute(
-      sql`select c.id::int as "agencyId",c.name as "agencyName",count(i.id)::int as "totalBills",1::int as "totalStores",coalesce(sum(i.bill_amount),0)::float8 as "totalBillAmount",coalesce(sum(i.bill_amount-i.outstanding_balance),0)::float8 as "totalPaid",coalesce(sum(i.outstanding_balance),0)::float8 as "totalRemaining" from customers c left join invoices i on i.customer_id=c.id and i.organization_id=${organizationId} and i.invoice_date>=${range.from}::date and i.invoice_date<${range.to}::date where c.organization_id=${organizationId} group by c.id,c.name order by c.id`,
+      sql`select c.id::int as "agencyId",c.register_number::int as "serialNumber",c.name as "agencyName",count(i.id)::int as "totalBills",1::int as "totalStores",coalesce(sum(i.bill_amount),0)::float8 as "totalBillAmount",coalesce(sum(i.bill_amount-i.outstanding_balance),0)::float8 as "totalPaid",coalesce(sum(i.outstanding_balance),0)::float8 as "totalRemaining" from customers c left join invoices i on i.customer_id=c.id and i.organization_id=${organizationId} and i.invoice_date>=${range.from}::date and i.invoice_date<${range.to}::date where c.organization_id=${organizationId} group by c.id,c.register_number,c.name order by c.register_number,c.id`,
     );
     const agencies = (result.rows as any[]).map((row) => ({
       ...row,

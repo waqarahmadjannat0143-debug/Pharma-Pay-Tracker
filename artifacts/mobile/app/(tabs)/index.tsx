@@ -146,7 +146,7 @@ export default function DashboardScreen() {
       1,
     );
     return (
-      <View style={[styles.container, { backgroundColor: "#F3F6FC" }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -270,7 +270,10 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={[
                 styles.balanceCard,
-                { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
+                {
+                  backgroundColor: colors.secondary,
+                  borderColor: colors.border,
+                },
               ]}
               onPress={() => router.push("/report/outstanding")}
             >
@@ -317,7 +320,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={[
                 styles.balanceCard,
-                { backgroundColor: "#F0FDFA", borderColor: "#99F6E4" },
+                { backgroundColor: colors.accent, borderColor: colors.border },
               ]}
               onPress={() => goCollection(period)}
             >
@@ -369,8 +372,8 @@ export default function DashboardScreen() {
                     styles.panel,
                     styles.schedulePanel,
                     {
-                      backgroundColor: "#F8FAFF",
-                      borderColor: "#DBEAFE",
+                      backgroundColor: colors.secondary,
+                      borderColor: colors.border,
                     },
                   ]}
                 >
@@ -479,8 +482,8 @@ export default function DashboardScreen() {
                     styles.panel,
                     styles.healthPanelDesktop,
                     {
-                      backgroundColor: "#F0FDFA",
-                      borderColor: "#99F6E4",
+                      backgroundColor: colors.accent,
+                      borderColor: colors.border,
                     },
                   ]}
                 >
@@ -593,7 +596,10 @@ export default function DashboardScreen() {
                 style={[
                   styles.panel,
                   styles.trendPanelDesktop,
-                  { backgroundColor: "#F8FAFF", borderColor: "#DBEAFE" },
+                  {
+                    backgroundColor: colors.secondary,
+                    borderColor: colors.border,
+                  },
                 ]}
               >
                 <View style={styles.panelHeader}>
@@ -633,7 +639,7 @@ export default function DashboardScreen() {
                         {short(m.amount)}
                       </Text>
                       <LinearGradient
-                        colors={[colors.primary, "#60A5FA"]}
+                        colors={[colors.gradientStart, colors.gradientEnd]}
                         style={[
                           styles.compactBar,
                           {
@@ -662,7 +668,10 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 style={[
                   styles.railCard,
-                  { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
+                  {
+                    backgroundColor: colors.secondary,
+                    borderColor: colors.border,
+                  },
                 ]}
                 onPress={() => router.push("/(tabs)/customers" as any)}
               >
@@ -717,7 +726,10 @@ export default function DashboardScreen() {
                 style={[
                   styles.railCard,
                   styles.registerRailCard,
-                  { backgroundColor: "#0F172A", borderColor: "#0F172A" },
+                  {
+                    backgroundColor: colors.gradientStart,
+                    borderColor: colors.gradientStart,
+                  },
                 ]}
                 onPress={() => router.push("/register" as any)}
               >
@@ -729,13 +741,13 @@ export default function DashboardScreen() {
                 >
                   <Feather name="book-open" size={20} color="#FFFFFF" />
                 </View>
-                <Text style={[styles.railLabel, { color: "#94A3B8" }]}>
+                <Text style={[styles.railLabel, { color: "#F5E6BF" }]}>
                   MONTHLY REGISTER
                 </Text>
                 <Text style={[styles.registerRailTitle, { color: "#FFFFFF" }]}>
                   Agency ledger
                 </Text>
-                <Text style={[styles.railLink, { color: "#60A5FA" }]}>
+                <Text style={[styles.railLink, { color: "#FFE29A" }]}>
                   Open register →
                 </Text>
               </TouchableOpacity>
@@ -1210,7 +1222,7 @@ export default function DashboardScreen() {
                       {m.amount ? short(m.amount) : ""}
                     </Text>
                     <LinearGradient
-                      colors={[colors.primary, "#6EA8FF"]}
+                      colors={[colors.gradientStart, colors.gradientEnd]}
                       style={[styles.bar, { height: h }]}
                     />
                     <Text

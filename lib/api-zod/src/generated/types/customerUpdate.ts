@@ -14,4 +14,6 @@ export interface CustomerUpdate {
   address?: string;
   creditLimit?: number;
   dueDays?: number;
+  serialNumber?: number;
+  registerNumber?: number;
 }

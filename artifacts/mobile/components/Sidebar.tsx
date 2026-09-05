@@ -39,7 +39,7 @@ export function Sidebar() {
     <View
       style={[
         styles.sidebar,
-        { backgroundColor: "#0F172A", borderRightColor: "#1E293B" },
+        { backgroundColor: "#3B2A12", borderRightColor: "#6F4A10" },
       ]}
     >
       {/* Brand */}
@@ -79,7 +79,7 @@ export function Sidebar() {
                 <Feather
                   name={item.icon}
                   size={17}
-                  color={active ? "#FFFFFF" : "#94A3B8"}
+                  color={active ? "#FFFFFF" : "#DCCCA9"}
                 />
               </View>
               <Text
@@ -136,7 +136,7 @@ export function Sidebar() {
           >
             {username ?? "Admin"}
           </Text>
-          <Text style={[styles.userRole, { color: "#94A3B8" }]}>
+          <Text style={[styles.userRole, { color: "#DCCCA9" }]}>
             Administrator
           </Text>
         </View>
@@ -145,7 +145,7 @@ export function Sidebar() {
           style={styles.logoutBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="log-out" size={16} color="#94A3B8" />
+          <Feather name="log-out" size={16} color="#DCCCA9" />
         </TouchableOpacity>
       </TouchableOpacity>
     </View>
