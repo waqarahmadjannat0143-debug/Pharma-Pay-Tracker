@@ -2,7 +2,7 @@
   "expo": {
     "name": "MedPay",
     "slug": "medpay-agency",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "medpay",
@@ -23,7 +23,7 @@
         "backgroundColor": "#1565C0"
       },
       "package": "com.medpay.agency",
-      "versionCode": 3,
+      "versionCode": 4,
       "edgeToEdgeEnabled": true,
       "permissions": [],
       "blockedPermissions": [
