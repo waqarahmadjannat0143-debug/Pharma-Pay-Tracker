@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   integer,
   pgTable,
   serial,
@@ -47,6 +48,9 @@ export const appUsersTable = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => ({
+    organizationIdIndex: index("app_users_organization_id_idx").on(
+      table.organizationId,
+    ),
     normalizedUsernameUnique: uniqueIndex(
       "app_users_normalized_username_unique",
     ).on(table.normalizedUsername),
