@@ -34,6 +34,8 @@ setAuthTokenGetter(getToken);
 
 let queryClient: QueryClient;
 const QUERY_CACHE_KEY = "medpay-query-cache-v1";
+const MAX_QUERY_CACHE_BYTES = 500_000;
+const STARTUP_CACHE_WAIT_MS = 400;
 const mutationCache = new MutationCache({
   onSuccess: async () => {
     // A successful mutation can affect dashboard, stores, invoices,
@@ -185,19 +187,33 @@ export default function RootLayout() {
 
   useEffect(() => {
     let active = true;
+    const releaseStartup = setTimeout(() => {
+      if (active) setCacheReady(true);
+    }, STARTUP_CACHE_WAIT_MS);
+
     AsyncStorage.getItem(QUERY_CACHE_KEY)
       .then((raw) => {
         if (!raw) return;
+        // A large persisted query cache makes JSON.parse block the JS thread and
+        // keeps the native splash visible. Discard it instead of slowing launch.
+        if (raw.length > MAX_QUERY_CACHE_BYTES) {
+          AsyncStorage.removeItem(QUERY_CACHE_KEY).catch(() => undefined);
+          return;
+        }
         const cached = JSON.parse(raw);
         if (cached?.timestamp > Date.now() - 86400000 && cached?.state)
           hydrate(queryClient, cached.state);
       })
       .catch(() => undefined)
       .finally(() => {
-        if (active) setCacheReady(true);
+        if (active) {
+          clearTimeout(releaseStartup);
+          setCacheReady(true);
+        }
       });
     return () => {
       active = false;
+      clearTimeout(releaseStartup);
     };
   }, []);
 
@@ -208,12 +224,19 @@ export default function RootLayout() {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         const state = dehydrate(queryClient, {
-          shouldDehydrateQuery: (q) => q.state.status === "success",
+          // Persist only the lightweight screens needed immediately after
+          // launch. Invoice/payment history can grow indefinitely and made the
+          // startup cache progressively slower on real devices.
+          shouldDehydrateQuery: (q) => {
+            if (q.state.status !== "success") return false;
+            const root = String(q.queryKey[0] ?? "");
+            return root === "dashboard-overview" || root === "agencies";
+          },
         });
-        AsyncStorage.setItem(
-          QUERY_CACHE_KEY,
-          JSON.stringify({ timestamp: Date.now(), state }),
-        ).catch(() => undefined);
+        const serialized = JSON.stringify({ timestamp: Date.now(), state });
+        if (serialized.length <= MAX_QUERY_CACHE_BYTES) {
+          AsyncStorage.setItem(QUERY_CACHE_KEY, serialized).catch(() => undefined);
+        }
       }, 750);
     });
     return () => {
