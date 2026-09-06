@@ -39,7 +39,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: pnpm
 
       - name: Set up Java
@@ -61,44 +61,25 @@ jobs:
         working-directory: artifacts/mobile
         run: pnpm exec expo prebuild --platform android --clean --no-install
 
-      - name: Use side-by-side test package
-        working-directory: artifacts/mobile
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          gradle = Path("android/app/build.gradle")
-          source = gradle.read_text()
-          marker = "debug {\n            signingConfig signingConfigs.debug"
-          replacement = "debug {\n            applicationIdSuffix \".test\"\n            versionNameSuffix \"-test\"\n            signingConfig signingConfigs.debug"
-          if marker not in source:
-              raise SystemExit("Could not locate the generated Android debug build type")
-          gradle.write_text(source.replace(marker, replacement, 1))
-
-          strings = Path("android/app/src/main/res/values/strings.xml")
-          labels = strings.read_text()
-          strings.write_text(labels.replace(">MedPay<", ">MedPay Test<", 1))
-          PY
-
-      - name: Build signed test APK
+      - name: Build standalone release APK
         working-directory: artifacts/mobile/android
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Verify APK signature and checksum
         run: |
-          APK="artifacts/mobile/android/app/build/outputs/apk/debug/app-debug.apk"
+          APK="artifacts/mobile/android/app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
-          sha256sum "$APK" | tee MedPay-Test-APK.sha256
+          apksigner verify --verbose "$APK"
+          sha256sum "$APK" | tee MedPay-Release-APK.sha256
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: MedPay-Test-APK
+          name: MedPay-Release-APK
           path: |
-            artifacts/mobile/android/app/build/outputs/apk/debug/app-debug.apk
-            MedPay-Test-APK.sha256
+            artifacts/mobile/android/app/build/outputs/apk/release/app-release.apk
+            MedPay-Release-APK.sha256
           if-no-files-found: error
           retention-days: 14
