@@ -1,3 +1,4 @@
+import { MedPayLoading } from "@/components/MedPayLoading";
 import React, { useMemo, useState } from "react";
 import {
   View,
@@ -109,7 +110,7 @@ export default function DashboardScreen() {
   if (isLoading && !data)
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <MedPayLoading label="Loading dashboard" />
         <Text style={[styles.wakeTitle, { color: colors.foreground }]}>
           Server start ho raha hai
         </Text>

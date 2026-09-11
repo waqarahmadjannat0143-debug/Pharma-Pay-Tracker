@@ -1,3 +1,4 @@
+import { MedPayLoading } from "@/components/MedPayLoading";
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -45,7 +46,7 @@ export default function CollectionScreen() {
   const ready = Boolean(range.fromDate && range.toDate && range.fromDate <= range.toDate);
   const report = useGetPayments(
     { fromDate: range.fromDate, toDate: range.toDate },
-    { query: { queryKey: getGetPaymentsQueryKey({ fromDate: range.fromDate, toDate: range.toDate }), enabled: ready, staleTime: 0, refetchOnMount: "always" } },
+    { query: { queryKey: getGetPaymentsQueryKey({ fromDate: range.fromDate, toDate: range.toDate }), enabled: ready, staleTime: 60000, refetchOnMount: true } },
   );
   const rows = ready ? report.data ?? [] : [];
   const agencies = Array.from(new Map(rows.map(p => [p.customerId, p.customerName])).entries())
@@ -56,6 +57,10 @@ export default function CollectionScreen() {
     return (agency === null || p.customerId === agency) &&
       (mode === "all" || p.paymentMode === mode) && text.includes(search.trim().toLowerCase());
   });
+  const dayTotals = new Map<string, number>();
+  for (const payment of filtered) {
+    dayTotals.set(payment.paymentDate, (dayTotals.get(payment.paymentDate) ?? 0) + payment.amount);
+  }
   const total = filtered.reduce((sum, p) => sum + p.amount, 0);
   const count = filtered.length;
   const grouped = Array.from(filtered.reduce((map, p) => {
@@ -101,7 +106,7 @@ export default function CollectionScreen() {
     {report.isError ? <View style={styles.box}>
       <Text style={{ color: colors.overdue }}>Report could not load. Totals are unavailable.</Text>
       {chip("Retry", true, () => { void report.refetch(); })}
-    </View> : !ready ? null : report.isLoading ? <ActivityIndicator color={colors.primary} /> : <>
+    </View> : !ready ? null : report.isLoading ? <MedPayLoading label="Loading collection report" /> : <>
       <View style={[styles.box, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={{ color: colors.mutedForeground }}>FILTERED COLLECTION</Text>
         <Text style={[styles.big, { color: colors.paid }]}>{formatCurrency(total)}</Text>
@@ -126,7 +131,7 @@ export default function CollectionScreen() {
         <Text style={{ color: colors.mutedForeground }}>Tap to see payments</Text>
       </TouchableOpacity>) : filtered.map((p, index) => <View key={p.id}>
         {(index === 0 || filtered[index - 1].paymentDate !== p.paymentDate) && <Text style={{ color: colors.mutedForeground, marginBottom: 8 }}>
-          {formatDateDDMMYY(p.paymentDate)} · {formatCurrency(filtered.filter(x => x.paymentDate === p.paymentDate).reduce((sum, x) => sum + x.amount, 0))}
+          {formatDateDDMMYY(p.paymentDate)} · {formatCurrency(dayTotals.get(p.paymentDate) ?? 0)}
         </Text>}
         <View style={[styles.box, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.name, { color: colors.foreground }]}>{p.customerName}</Text>

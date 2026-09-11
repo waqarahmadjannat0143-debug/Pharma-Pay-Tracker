@@ -72,38 +72,33 @@ router.get("/", async (req: AuthRequest, res) => {
       )
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(paymentsTable.paymentDate), desc(paymentsTable.id));
-    const result = await Promise.all(
-      rows.map(async (row) => {
-        const allocations = await db
-          .select({
-            invoiceId: paymentAllocationsTable.invoiceId,
-            amount: paymentAllocationsTable.amount,
-            invoiceNumber: invoicesTable.invoiceNumber,
-          })
-          .from(paymentAllocationsTable)
-          .innerJoin(
-            invoicesTable,
-            eq(paymentAllocationsTable.invoiceId, invoicesTable.id),
-          )
-          .where(
-            and(
-              eq(
-                paymentAllocationsTable.organizationId,
-                req.adminUser!.organizationId,
-              ),
-              eq(paymentAllocationsTable.paymentId, row.id),
-            ),
-          );
-        return {
-          ...row,
-          amount: Number(row.amount),
-          allocations: allocations.map((a) => ({
-            ...a,
-            amount: Number(a.amount),
-          })),
-        };
-      }),
-    );
+    // Fetch allocations in bounded batches, rather than one query per payment.
+    const byPayment = new Map<number, { invoiceId: number; invoiceNumber: string; amount: number }[]>();
+    for (let offset = 0; offset < rows.length; offset += 500) {
+      const ids = rows.slice(offset, offset + 500).map(row => row.id);
+      const allocations = await db.select({
+        paymentId: paymentAllocationsTable.paymentId,
+        invoiceId: paymentAllocationsTable.invoiceId,
+        amount: paymentAllocationsTable.amount,
+        invoiceNumber: invoicesTable.invoiceNumber,
+      }).from(paymentAllocationsTable)
+        .innerJoin(invoicesTable, eq(paymentAllocationsTable.invoiceId, invoicesTable.id))
+        .where(and(
+          eq(paymentAllocationsTable.organizationId, req.adminUser!.organizationId),
+          eq(invoicesTable.organizationId, req.adminUser!.organizationId),
+          inArray(paymentAllocationsTable.paymentId, ids),
+        ));
+      for (const allocation of allocations) {
+        const list = byPayment.get(allocation.paymentId) ?? [];
+        list.push({ invoiceId: allocation.invoiceId, invoiceNumber: allocation.invoiceNumber, amount: Number(allocation.amount) });
+        byPayment.set(allocation.paymentId, list);
+      }
+    }
+    const result = rows.map(row => ({
+      ...row,
+      amount: Number(row.amount),
+      allocations: byPayment.get(row.id) ?? [],
+    }));
     res.json(result);
   } catch (err) {
     req.log?.error({ err }, "Failed to list payments");
