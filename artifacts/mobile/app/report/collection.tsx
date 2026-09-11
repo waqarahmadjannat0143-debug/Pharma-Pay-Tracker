@@ -1,24 +1,24 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Platform, TextInput } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+
 import { useColors } from "@/hooks/useColors";
-import { getToken } from "@/lib/apiToken";
+
 import { formatDateDDMMYY, ddmmyyToISO, formatDateInput, formatLocalISODate } from "@/lib/dateFormat";
 import { EmptyState } from "@/components/EmptyState";
-import { useGetMonthlyCollectionReport } from "@workspace/api-client-react";
+import { useGetPayments, getGetPaymentsQueryKey } from "@workspace/api-client-react";
 
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN || "pharma-pay-tracker.onrender.com"}`;
+
 
 function formatCurrency(amount: number) { return "₹" + amount.toLocaleString("en-IN", { minimumFractionDigits: 0 }); }
 const iso = formatLocalISODate;
 
 type Preset = "today" | "week" | "previousMonth" | "month" | "year" | "custom" | "all";
-type DailyCollection = { date: string; amount: number; count: number };
+
 
 export default function CollectionScreen() {
-  const colors = useColors(); const insets = useSafeAreaInsets(); const isWeb = Platform.OS === "web";
+  const colors = useColors(); const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ period?: string }>();
   const initialPreset = (["today","week","previousMonth","month","year","custom","all"].includes(params.period || "") ? params.period : "month") as Preset;
   const [preset, setPreset] = useState<Preset>(initialPreset); const [customFrom, setCustomFrom] = useState(""); const [customTo, setCustomTo] = useState("");
@@ -38,38 +38,115 @@ export default function CollectionScreen() {
     return { fromDate: "2000-01-01", toDate: "2099-12-31" };
   }, [preset, customFrom, customTo]);
 
-  const year = new Date().getFullYear();
-  // Use the exact same endpoint and query key as Dashboard. This prevents the
-  // two screens from showing different persisted-cache snapshots.
-  const { data: overview, isLoading: dailyLoading } = useQuery<{ periodRows: DailyCollection[] }>({
-    queryKey: ["dashboard-overview", range.fromDate, range.toDate],
-    enabled: Boolean(range.fromDate && range.toDate && range.fromDate <= range.toDate),
-    staleTime: 0,
-    refetchOnMount: "always",
-    queryFn: async () => {
-      const response = await fetch(`${API_BASE}/api/dashboard/overview?fromDate=${range.fromDate}&toDate=${range.toDate}`, {
-        headers: { Authorization: `Bearer ${getToken()}`, "Cache-Control": "no-cache" },
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || "Collection report load failed");
-      return body;
-    },
+  const [agency, setAgency] = useState<number | null>(null);
+  const [mode, setMode] = useState("all");
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<"payments" | "agencies">("payments");
+  const ready = Boolean(range.fromDate && range.toDate && range.fromDate <= range.toDate);
+  const report = useGetPayments(
+    { fromDate: range.fromDate, toDate: range.toDate },
+    { query: { queryKey: getGetPaymentsQueryKey({ fromDate: range.fromDate, toDate: range.toDate }), enabled: ready, staleTime: 0, refetchOnMount: "always" } },
+  );
+  const rows = ready ? report.data ?? [] : [];
+  const agencies = Array.from(new Map(rows.map(p => [p.customerId, p.customerName])).entries())
+    .sort((a, b) => a[1].localeCompare(b[1]));
+  const filtered = rows.filter(p => {
+    const receipt = (p as typeof p & { slipNumber?: string }).slipNumber || "";
+    const text = [p.customerName, receipt, p.notes, ...(p.allocations ?? []).map(a => a.invoiceNumber)].join(" ").toLowerCase();
+    return (agency === null || p.customerId === agency) &&
+      (mode === "all" || p.paymentMode === mode) && text.includes(search.trim().toLowerCase());
   });
-  const daily = overview?.periodRows ?? [];
-  const { data: monthly } = useGetMonthlyCollectionReport({ year });
-  const total = (daily ?? []).reduce((s, row) => s + row.amount, 0); const count = (daily ?? []).reduce((s, row) => s + row.count, 0);
+  const total = filtered.reduce((sum, p) => sum + p.amount, 0);
+  const count = filtered.length;
+  const grouped = Array.from(filtered.reduce((map, p) => {
+    const row = map.get(p.customerId) ?? { id: p.customerId, name: p.customerName, amount: 0, count: 0 };
+    row.amount += p.amount; row.count++;
+    map.set(p.customerId, row); return map;
+  }, new Map<number, { id: number; name: string; amount: number; count: number }>()).values())
+    .sort((a, b) => b.amount - a.amount);
+  const modes = [["all", "All modes"], ["cash", "Cash"], ["upi", "UPI"], ["bank_transfer", "Bank"], ["cheque", "Cheque"]];
+  const modeLabel = (key: string) => modes.find(m => m[0] === key)?.[1] || key;
+  const chip = (label: string, active: boolean, press: () => void) =>
+    <TouchableOpacity key={label} accessibilityRole="button" onPress={press} style={[styles.chip, { backgroundColor: active ? colors.primary : colors.card, borderColor: colors.border }]}>
+      <Text style={{ color: active ? "#fff" : colors.foreground }}>{label}</Text>
+    </TouchableOpacity>;
   const chips: { key: Preset; label: string }[] = [{ key: "today", label: "Today" }, { key: "week", label: "7 Days" }, { key: "previousMonth", label: "Previous Month" }, { key: "month", label: "This Month" }, { key: "year", label: "This Year" }, { key: "all", label: "All" }, { key: "custom", label: "Custom" }];
   const customDatesValid = Boolean(range.fromDate && range.toDate);
   const customReady = Boolean(customDatesValid && range.fromDate! <= range.toDate!);
 
-  return <View style={[styles.container, { backgroundColor: colors.background }]}>
-    <View style={styles.filters}>
-      <FlatList horizontal data={chips} keyExtractor={i => i.key} showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} renderItem={({ item }) => { const active = preset === item.key; return <TouchableOpacity style={[styles.chip, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]} onPress={() => setPreset(item.key)}><Text style={{ color: active ? "#fff" : colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{item.label}</Text></TouchableOpacity>; }} />
-      {preset === "custom" && <><View style={styles.customRow}><TextInput value={customFrom} onChangeText={value => setCustomFrom(formatDateInput(value))} placeholder="From DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" maxLength={8} style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} /><TextInput value={customTo} onChangeText={value => setCustomTo(formatDateInput(value))} placeholder="To DD-MM-YY" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" maxLength={8} style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} /></View><Text style={[styles.customHint, { color: customReady ? colors.paid : customDatesValid ? colors.overdue : colors.mutedForeground }]}>{customReady ? `${customFrom} se ${customTo} ka report` : customDatesValid ? "From date, To date se pehle honi chahiye" : "Sirf 6 digits type karein — 010826 automatic 01-08-26 banega"}</Text></>}
+  return <ScrollView style={{ flex: 1, backgroundColor: colors.background }}
+    contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 24 }}>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      {chips.map(c => chip(c.label, preset === c.key, () => setPreset(c.key)))}
     </View>
-    <View style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}><View><Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>COLLECTION</Text><Text style={[styles.summaryAmount, { color: colors.paid }]}>{formatCurrency(total)}</Text></View><View style={{ alignItems: "flex-end" }}><Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>PAYMENTS</Text><Text style={[styles.summaryCount, { color: colors.foreground }]}>{count}</Text></View></View>
-    {dailyLoading ? <View style={styles.loader}><ActivityIndicator color={colors.primary} size="large" /></View> : <FlatList data={daily ?? []} keyExtractor={item => item.date} renderItem={({ item }) => <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}><View><Text style={[styles.period, { color: colors.foreground }]}>{formatDateDDMMYY(item.date)}</Text><Text style={[styles.count, { color: colors.mutedForeground }]}>{item.count} payment(s)</Text></View><Text style={[styles.amount, { color: colors.paid }]}>{formatCurrency(item.amount)}</Text></View>} ListEmptyComponent={<EmptyState icon="bar-chart-2" title="No data" subtitle="No collection data in this period" />} contentContainerStyle={{ paddingBottom: insets.bottom + (isWeb ? 34 : 20) }} showsVerticalScrollIndicator={false} ListFooterComponent={preset === "year" && monthly && monthly.length ? <View style={[styles.yearBox, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.yearTitle, { color: colors.foreground }]}>Monthly breakdown</Text>{monthly.map(m => <View key={`${m.year}-${m.month}`} style={styles.monthRow}><Text style={{ color: colors.mutedForeground }}>{m.label} {m.year}</Text><Text style={{ color: colors.paid, fontFamily: "Inter_600SemiBold" }}>{formatCurrency(m.amount)}</Text></View>)}</View> : null} />}
-  </View>;
+    {preset === "custom" && <>
+      <View style={styles.customRow}>
+        <TextInput accessibilityLabel="From date" value={customFrom} onChangeText={v => setCustomFrom(formatDateInput(v))} placeholder="From DD-MM-YY" keyboardType="number-pad" maxLength={8} style={[styles.input, { color: colors.foreground, borderColor: colors.border }]} />
+        <TextInput accessibilityLabel="To date" value={customTo} onChangeText={v => setCustomTo(formatDateInput(v))} placeholder="To DD-MM-YY" keyboardType="number-pad" maxLength={8} style={[styles.input, { color: colors.foreground, borderColor: colors.border }]} />
+      </View>
+      {!ready && <Text style={{ color: colors.overdue }}>Enter valid dates; From date must be on or before To date.</Text>}
+    </>}
+    <TextInput accessibilityLabel="Search agency, bill or receipt" value={search} onChangeText={setSearch}
+      placeholder="Search agency, bill or receipt" placeholderTextColor={colors.mutedForeground}
+      style={[styles.input, { flex: 0, color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} />
+    <Text style={{ color: colors.mutedForeground }}>AGENCY</Text>
+    <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
+      {chip("All agencies", agency === null, () => setAgency(null))}
+      {agencies.map(([id, name]) => chip(name, agency === id, () => setAgency(id)))}
+    </ScrollView>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      {modes.map(([key, label]) => chip(label, mode === key, () => setMode(key)))}
+      {chip("Reset filters", false, () => { setPreset("month"); setAgency(null); setMode("all"); setSearch(""); })}
+    </View>
+    {report.isError ? <View style={styles.box}>
+      <Text style={{ color: colors.overdue }}>Report could not load. Totals are unavailable.</Text>
+      {chip("Retry", true, () => { void report.refetch(); })}
+    </View> : !ready ? null : report.isLoading ? <ActivityIndicator color={colors.primary} /> : <>
+      <View style={[styles.box, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={{ color: colors.mutedForeground }}>FILTERED COLLECTION</Text>
+        <Text style={[styles.big, { color: colors.paid }]}>{formatCurrency(total)}</Text>
+        <Text style={{ color: colors.foreground }}>{count} payments · {grouped.length} agencies</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+          {modes.slice(1).map(([key, label]) => <Text key={key} style={{ color: colors.mutedForeground }}>
+            {label}: {formatCurrency(filtered.filter(p => p.paymentMode === key).reduce((sum, p) => sum + p.amount, 0))}
+          </Text>)}
+        </View>
+        {chip(report.isFetching ? "Refreshing…" : "Refresh report", false, () => { void report.refetch(); })}
+      </View>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {chip("Payment details", view === "payments", () => setView("payments"))}
+        {chip("Agency totals", view === "agencies", () => setView("agencies"))}
+      </View>
+      {!filtered.length && <EmptyState icon="bar-chart-2" title="No payments" subtitle="No payments match these filters" />}
+      {view === "agencies" ? grouped.map(g => <TouchableOpacity key={g.id}
+        onPress={() => { setAgency(g.id); setView("payments"); }}
+        style={[styles.box, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.name, { color: colors.foreground }]}>{g.name}</Text>
+        <Text style={{ color: colors.paid }}>{formatCurrency(g.amount)} · {g.count} payments</Text>
+        <Text style={{ color: colors.mutedForeground }}>Tap to see payments</Text>
+      </TouchableOpacity>) : filtered.map((p, index) => <View key={p.id}>
+        {(index === 0 || filtered[index - 1].paymentDate !== p.paymentDate) && <Text style={{ color: colors.mutedForeground, marginBottom: 8 }}>
+          {formatDateDDMMYY(p.paymentDate)} · {formatCurrency(filtered.filter(x => x.paymentDate === p.paymentDate).reduce((sum, x) => sum + x.amount, 0))}
+        </Text>}
+        <View style={[styles.box, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.name, { color: colors.foreground }]}>{p.customerName}</Text>
+          <Text style={[styles.name, { color: colors.paid }]}>{formatCurrency(p.amount)}</Text>
+          <Text style={{ color: colors.mutedForeground }}>{modeLabel(p.paymentMode)} · Payment #{p.id}</Text>
+          {!!(p as typeof p & { slipNumber?: string }).slipNumber && <Text style={{ color: colors.foreground }}>Receipt: {(p as typeof p & { slipNumber?: string }).slipNumber}</Text>}
+          {(p.allocations ?? []).map(a => <Text key={a.invoiceId} style={{ color: colors.foreground }}>Bill {a.invoiceNumber}: {formatCurrency(a.amount)}</Text>)}
+          {!p.allocations?.length && <Text style={{ color: colors.mutedForeground }}>No bill allocation recorded</Text>}
+          {!!p.notes && <Text style={{ color: colors.mutedForeground }}>{p.notes}</Text>}
+        </View>
+      </View>)}
+    </>}
+  </ScrollView>;
 }
 
-const styles = StyleSheet.create({ container: { flex: 1 }, filters: { padding: 16, gap: 10 }, chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 }, customRow: { flexDirection: "row", gap: 8 }, input: { flex: 1, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, fontSize: 12 }, customHint: { fontSize: 10, fontFamily: "Inter_500Medium", marginTop: -3, paddingHorizontal: 2 }, summary: { marginHorizontal: 16, marginBottom: 8, borderRadius: 14, borderWidth: 1, padding: 16, flexDirection: "row", justifyContent: "space-between" }, summaryLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: .7 }, summaryAmount: { fontSize: 28, fontFamily: "Inter_700Bold", marginTop: 4 }, summaryCount: { fontSize: 24, fontFamily: "Inter_700Bold", marginTop: 4 }, loader: { flex: 1, alignItems: "center", justifyContent: "center" }, card: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, marginVertical: 4, borderRadius: 12, borderWidth: 1, padding: 16 }, period: { fontSize: 14, fontFamily: "Inter_600SemiBold" }, count: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 }, amount: { fontSize: 16, fontFamily: "Inter_700Bold" }, yearBox: { margin: 16, borderRadius: 12, borderWidth: 1, padding: 16, gap: 10 }, yearTitle: { fontFamily: "Inter_700Bold", fontSize: 14, marginBottom: 4 }, monthRow: { flexDirection: "row", justifyContent: "space-between" } });
+const styles = StyleSheet.create({
+  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1 },
+  customRow: { flexDirection: "row", gap: 8 },
+  input: { flex: 1, borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 14 },
+  box: { padding: 16, borderWidth: 1, borderRadius: 14, gap: 8 },
+  big: { fontSize: 30, fontFamily: "Inter_700Bold" },
+  name: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
+});
