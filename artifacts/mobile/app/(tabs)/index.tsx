@@ -39,6 +39,25 @@ function greeting() {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
 type Period = "today" | "week" | "month" | "year";
+type DashboardOverview = {
+  stats: {
+    totalOutstanding: number;
+    totalPaid: number;
+    todayCollection: number;
+    thisMonthCollection: number;
+    totalCustomers: number;
+    overdueCount: number;
+    dueIn3DaysCount: number;
+  };
+  monthly: { year: number; month: number; amount: number; label: string }[];
+  periodRows: { date: string; amount: number; count: number }[];
+};
+
+class DashboardError extends Error {
+  constructor(public status: number) {
+    super(`Dashboard request failed (${status})`);
+  }
+}
 
 export default function DashboardScreen() {
   const colors = useColors(),
@@ -49,6 +68,40 @@ export default function DashboardScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = isWeb && width >= 1024;
   const [period, setPeriod] = useState<Period>("month");
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const returnToLogin = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      await logout();
+      router.replace("/login");
+    } catch {
+      setLogoutError("Logout nahi hua. Dobara koshish karein.");
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+  const loginAction = (
+    <>
+      <TouchableOpacity
+        accessibilityRole="button"
+        style={[styles.retry, { borderWidth: 1, borderColor: colors.primary }]}
+        onPress={returnToLogin}
+        disabled={loggingOut}
+      >
+        <Text style={[styles.retryText, { color: colors.primary }]}>
+          {loggingOut ? "Logging out..." : "Logout / Dobara login"}
+        </Text>
+      </TouchableOpacity>
+      {!!logoutError && (
+        <Text style={[styles.wakeText, { color: colors.foreground }]}>
+          {logoutError}
+        </Text>
+      )}
+    </>
+  );
   const range = useMemo(() => {
     const now = new Date(),
       today = iso(now);
@@ -62,27 +115,35 @@ export default function DashboardScreen() {
       return { fromDate: `${today.slice(0, 4)}-01-01`, toDate: today };
     return { fromDate: `${today.slice(0, 7)}-01`, toDate: today };
   }, [period]);
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: ["dashboard-overview", range.fromDate, range.toDate],
-    staleTime: 120000,
-    gcTime: 600000,
-    placeholderData: (prev) => prev,
-    queryFn: async () => {
-      const token = getToken();
-      const r = await fetch(
-        `${API_BASE}/api/dashboard/overview?fromDate=${range.fromDate}&toDate=${range.toDate}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Cache-Control": "no-cache",
+  const { data, error, isLoading, isError, isFetching, refetch } =
+    useQuery<DashboardOverview>({
+      queryKey: ["dashboard-overview", range.fromDate, range.toDate],
+      staleTime: 120000,
+      gcTime: 600000,
+      placeholderData: (prev) => prev,
+      retry: (failures, error) =>
+        !(
+          error instanceof DashboardError &&
+          (error.status === 401 || error.status === 403)
+        ) && failures < 2,
+      queryFn: async ({ signal }): Promise<DashboardOverview> => {
+        const token = getToken();
+        const r = await fetch(
+          `${API_BASE}/api/dashboard/overview?fromDate=${range.fromDate}&toDate=${range.toDate}`,
+          {
+            signal,
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Cache-Control": "no-cache",
+            },
           },
-        },
-      );
-      const body = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(body.error || "Dashboard load failed");
-      return body;
-    },
-  });
+        );
+        if (!r.ok) throw new DashboardError(r.status);
+        return r.json();
+      },
+    });
+  const sessionExpired =
+    error instanceof DashboardError && error.status === 401;
   const stats = data?.stats,
     monthly = data?.monthly ?? [],
     periodRows = data?.periodRows ?? [];
@@ -112,32 +173,42 @@ export default function DashboardScreen() {
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <MedPayLoading label="Loading dashboard" />
         <Text style={[styles.wakeTitle, { color: colors.foreground }]}>
-          Server start ho raha hai
+          Dashboard load ho raha hai
         </Text>
         <Text style={[styles.wakeText, { color: colors.mutedForeground }]}>
           Data load hone mein thoda waqt lag sakta hai.
         </Text>
+        {loginAction}
       </View>
     );
-  if (isError && !data)
+  if (sessionExpired || (isError && !data))
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Feather name="wifi-off" size={36} color={colors.mutedForeground} />
+        <Feather
+          name={sessionExpired ? "lock" : "wifi-off"}
+          size={36}
+          color={colors.mutedForeground}
+        />
         <Text style={[styles.wakeTitle, { color: colors.foreground }]}>
-          Data load nahi hua
+          {sessionExpired ? "Dobara login karein" : "Data load nahi hua"}
         </Text>
         <Text style={[styles.wakeText, { color: colors.mutedForeground }]}>
-          Data safe hai. Server wake hone ke baad retry karein.
+          {sessionExpired
+            ? "Login session expire ya invalid hai. Apne account mein dobara login karein."
+            : "Connection ya server mein problem ho sakti hai. Retry karein; zarurat ho to dobara login karein."}
         </Text>
-        <TouchableOpacity
-          style={[styles.retry, { backgroundColor: colors.primary }]}
-          onPress={() => refetch()}
-          disabled={isFetching}
-        >
-          <Text style={styles.retryText}>
-            {isFetching ? "Loading..." : "Retry"}
-          </Text>
-        </TouchableOpacity>
+        {!sessionExpired && (
+          <TouchableOpacity
+            style={[styles.retry, { backgroundColor: colors.primary }]}
+            onPress={() => refetch()}
+            disabled={isFetching}
+          >
+            <Text style={styles.retryText}>
+              {isFetching ? "Loading..." : "Retry"}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {loginAction}
       </View>
     );
   if (isDesktop) {

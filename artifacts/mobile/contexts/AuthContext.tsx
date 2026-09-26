@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { setToken } from "@/lib/apiToken";
+import { useQueryClient } from "@tanstack/react-query";
 
 const TOKEN_KEY = "auth_token";
 
@@ -48,6 +49,7 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
@@ -78,6 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await removeToken();
     await AsyncStorage.removeItem("auth_username");
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await AsyncStorage.removeItem("medpay-query-cache-v1");
     setToken(null);
     setIsAuthenticated(false);
     setUsername(null);
